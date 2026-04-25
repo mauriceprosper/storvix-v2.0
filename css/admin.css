@@ -1,0 +1,35 @@
+/* ============================================================
+   STORVIX — Admin Panel Styles (css/admin.css)
+============================================================ */
+
+.admin-layout {
+  display: grid; grid-template-columns: 220px 1fr;
+  min-height: 100vh; background: var(--bg);
+}
+
+.admin-sidebar {
+  background: #0F172A; color: #fff; padding: 24px 16px;
+}
+.admin-sidebar .brand {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 32px; font-weight: 800; font-size: 1.125rem;
+}
+.admin-sidebar .brand img { width: 32px; height: 32px; border-radius: 8px; }
+.admin-nav-item {
+  padding: 10px 14px; border-radius: var(--r-sm); color: rgba(255,255,255,0.7);
+  font-size: 0.9375rem; cursor: pointer; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 10px; transition: all 0.15s;
+}
+.admin-nav-item:hover  { background: rgba(255,255,255,0.05); color: #fff; }
+.admin-nav-item.active { background: var(--purple); color: #fff; }
+
+.admin-main { padding: 32px; overflow-y: auto; }
+.admin-tab { display: none; }
+.admin-tab.active { display: block; }
+
+.admin-section-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 24px; }
+
+@media (max-width: 720px) {
+  .admin-layout { grid-template-columns: 1fr; }
+  .admin-sidebar { display: none; }
+}

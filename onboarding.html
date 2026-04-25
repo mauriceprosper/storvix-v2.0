@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storvix — Set Up Your Store</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+<div id="storvix-toast"></div>
+
+<div class="onboard-page" id="onboardPage" style="display:none">
+
+  <!-- Topbar -->
+  <div class="onboard-topbar">
+    <div class="onboard-brand">
+      <img src="assets/logo.png" alt="Storvix">
+      <span>Storvix</span>
+    </div>
+    <span class="onboard-step-info" id="stepInfo">Step 1 of 5</span>
+  </div>
+
+  <!-- Progress -->
+  <div class="onboard-progress">
+    <div class="onboard-progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <div class="onboard-body">
+
+    <!-- ── STEP 1: Business Basics ── -->
+    <div class="onboard-step active" id="step1">
+      <h1 class="onboard-step-title">Tell us about your business</h1>
+      <p class="onboard-step-sub">This information appears on your storefront for buyers.</p>
+
+      <div class="onboard-form">
+        <div class="form-group">
+          <label class="form-label">Full name</label>
+          <input class="form-input" type="text" id="ownerName" placeholder="Amaka Okonkwo">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Store / Business name</label>
+          <input class="form-input" type="text" id="storeName" placeholder="Amaka's Closet">
+          <span class="form-hint">This is what buyers will see on your storefront.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">What do you sell?</label>
+          <div class="chip-wrap" id="categoryChips">
+            <!-- Injected by JS -->
+          </div>
+          <span class="form-hint">Select all that apply.</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+          <div class="form-group">
+            <label class="form-label">City</label>
+            <input class="form-input" type="text" id="cityInput" placeholder="Lagos">
+          </div>
+          <div class="form-group">
+            <label class="form-label">State</label>
+            <select class="form-select" id="stateSelect">
+              <option value="">Select state…</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WhatsApp number</label>
+          <input class="form-input" type="tel" id="whatsappNumber" placeholder="+234 806 123 4567">
+          <span class="form-hint">Buyers can contact you here. Include country code (+234).</span>
+        </div>
+      </div>
+
+      <div class="onboard-actions">
+        <div class="right">
+          <button class="btn btn-primary" id="step1Next">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Store URL ── -->
+    <div class="onboard-step" id="step2">
+      <h1 class="onboard-step-title">Your store URL</h1>
+      <p class="onboard-step-sub">This is the link you'll share with your customers.</p>
+
+      <div class="onboard-form">
+        <div class="form-group">
+          <label class="form-label">Store URL slug</label>
+          <input class="form-input" type="text" id="slugInput" placeholder="amaka-closet" style="font-family:monospace">
+          <div class="slug-preview" id="slugPreview">your-store.storvix.ng</div>
+          <div class="slug-status" id="slugStatus"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Store tagline <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+          <input class="form-input" type="text" id="taglineInput" placeholder="Fashion that fits your vibe">
+        </div>
+        <div class="form-group">
+          <label class="form-label">About your store <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+          <textarea class="form-textarea" id="aboutInput" placeholder="Tell buyers a bit about what you do and why they should shop with you…" rows="4"></textarea>
+        </div>
+      </div>
+
+      <div class="onboard-actions">
+        <button class="btn btn-secondary" id="step2Back">← Back</button>
+        <button class="btn btn-primary" id="step2Next">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Branding ── -->
+    <div class="onboard-step" id="step3">
+      <h1 class="onboard-step-title">Brand your store</h1>
+      <p class="onboard-step-sub">Make your store look like you.</p>
+
+      <div class="onboard-form">
+        <div class="form-group">
+          <label class="form-label">Store logo</label>
+          <div class="logo-upload-area" id="logoUploadArea">
+            <img class="logo-preview" id="logoPreview" src="" alt="" style="display:none">
+            <div id="logoUploadPlaceholder">
+              <div style="font-size:2.5rem;margin-bottom:8px">🖼</div>
+              <p style="font-weight:600;margin-bottom:4px">Click to upload logo</p>
+              <p class="text-sm text-muted">PNG or JPG, max 2MB</p>
+            </div>
+          </div>
+          <input type="file" id="logoFile" accept="image/*" style="display:none">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Brand colour</label>
+          <div class="color-presets" id="colorPresets">
+            <!-- Injected by JS -->
+          </div>
+          <div class="color-input-row">
+            <input type="color" id="colorPicker" value="#6C47FF" style="width:44px;height:44px;border-radius:var(--r);border:1.5px solid var(--border);cursor:pointer;padding:2px">
+            <input class="form-input" type="text" id="colorHex" placeholder="#6C47FF" style="font-family:monospace;max-width:140px">
+            <span class="form-hint">Custom hex code</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Banner image <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+          <div class="logo-upload-area" id="bannerUploadArea" style="aspect-ratio:3/1;padding:16px">
+            <img id="bannerPreview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:var(--r-sm)">
+            <div id="bannerUploadPlaceholder" style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:1.75rem">🖼</span>
+              <div>
+                <p style="font-weight:600;margin-bottom:2px">Upload banner</p>
+                <p class="text-sm text-muted">Appears behind your store name. 1200×400px recommended.</p>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="bannerFile" accept="image/*" style="display:none">
+        </div>
+      </div>
+
+      <div class="onboard-actions">
+        <button class="btn btn-secondary" id="step3Back">← Back</button>
+        <button class="btn btn-primary" id="step3Next">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Bank Account ── -->
+    <div class="onboard-step" id="step4">
+      <h1 class="onboard-step-title">Where should we send your money?</h1>
+      <p class="onboard-step-sub">Your earnings go directly to this account. You can change it anytime.</p>
+
+      <div class="onboard-form">
+        <div class="form-group">
+          <label class="form-label">Bank</label>
+          <select class="form-select" id="bankSelect">
+            <option value="">Select bank…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account number</label>
+          <div style="display:flex;gap:10px">
+            <input class="form-input" type="text" id="accountNumber"
+                   placeholder="0123456789" maxlength="10" inputmode="numeric"
+                   style="flex:1;font-family:monospace;letter-spacing:2px">
+            <button class="btn btn-secondary" id="verifyBankBtn">Verify</button>
+          </div>
+          <div id="accountNameResult" class="form-hint" style="color:var(--green);font-weight:600"></div>
+        </div>
+      </div>
+
+      <div class="onboard-actions">
+        <button class="btn btn-secondary" id="step4Back">← Back</button>
+        <button class="btn btn-primary" id="step4Next">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 5: Go Live ── -->
+    <div class="onboard-step" id="step5">
+      <h1 class="onboard-step-title">🎉 You're almost live!</h1>
+      <p class="onboard-step-sub">Review your setup and launch your store.</p>
+
+      <div class="store-url-copy">
+        <a href="#" id="storeLiveUrl" target="_blank">your-store.storvix.ng</a>
+        <button class="btn btn-sm btn-secondary" id="copyStoreUrl">Copy</button>
+      </div>
+
+      <div class="golive-checklist">
+        <div class="golive-item">
+          <div class="golive-check">✓</div>
+          <div class="golive-item-text">
+            <h5>Store is live</h5>
+            <p>Buyers can visit your store right now.</p>
+          </div>
+        </div>
+        <div class="golive-item">
+          <div class="golive-check">✓</div>
+          <div class="golive-item-text">
+            <h5>Paystack payments set up</h5>
+            <p>Accept card, transfer, and USSD payments.</p>
+          </div>
+        </div>
+        <div class="golive-item" id="bankVerifiedItem">
+          <div class="golive-check">✓</div>
+          <div class="golive-item-text">
+            <h5>Bank account connected</h5>
+            <p>Withdrawals will be sent to your account.</p>
+          </div>
+        </div>
+        <div class="golive-item">
+          <div class="golive-check" style="background:var(--amber-light);color:var(--amber)">⚡</div>
+          <div class="golive-item-text">
+            <h5>14-day free trial active</h5>
+            <p>Full features unlocked. No charge until your trial ends.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="onboard-actions" style="margin-top:32px">
+        <button class="btn btn-secondary" id="step5Back">← Back</button>
+        <button class="btn btn-primary btn-lg" id="goToDashboard">
+          Go to Dashboard →
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="js/onboarding.js"></script>
+</body>
+</html>

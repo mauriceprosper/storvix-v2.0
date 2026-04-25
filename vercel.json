@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/store",       "destination": "/store.html" },
+    { "source": "/store/(.*)",  "destination": "/store.html" },
+    { "source": "/pay",         "destination": "/pay.html" },
+    { "source": "/admin",       "destination": "/admin.html" },
+    { "source": "/dashboard",   "destination": "/dashboard.html" },
+    { "source": "/auth",        "destination": "/auth.html" },
+    { "source": "/onboarding",  "destination": "/onboarding.html" },
+    { "source": "/invoice",     "destination": "/invoice.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options",        "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" }
+      ]
+    },
+    {
+      "source": "/(.*).js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/(.*).css",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ]
+}

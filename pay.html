@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pay — Storvix</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/store.css">
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body>
+<div id="storvix-toast"></div>
+<div class="page-loader" id="pageLoader"><div class="spinner"></div></div>
+
+<div class="pay-page" id="payPage" style="display:none">
+  <div class="pay-box" id="payBox">
+    <div style="text-align:center;margin-bottom:24px">
+      <img id="paySellerLogo" src="" alt="" style="width:64px;height:64px;border-radius:14px;margin-bottom:12px;display:none">
+      <div class="pay-seller-name" id="paySellerName">—</div>
+      <div class="pay-description" id="payDescription">—</div>
+      <div class="pay-amount" id="payAmount">₦0</div>
+    </div>
+
+    <form id="payForm" style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label class="form-label">Your name</label>
+        <input class="form-input" type="text" id="payerName" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">WhatsApp number</label>
+        <input class="form-input" type="tel" id="payerPhone" placeholder="+234…" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email <span style="color:var(--text-faint);font-weight:400">(optional)</span></label>
+        <input class="form-input" type="email" id="payerEmail">
+      </div>
+      <button type="submit" class="btn-checkout" id="payNowBtn">Pay Now</button>
+    </form>
+
+    <div class="alert alert-info" style="margin-top:16px">🔒 Secured by Paystack</div>
+  </div>
+</div>
+
+<!-- States -->
+<div class="store-state-page" id="payStatePage" style="display:none">
+  <div class="store-state-box">
+    <div class="store-state-icon" id="payStateIcon">🔒</div>
+    <h2 class="store-state-title" id="payStateTitle">Payment Link</h2>
+    <p class="store-state-text" id="payStateText"></p>
+  </div>
+</div>
+
+<script type="module">
+import { db, doc, getDoc, getDocs, collection, query, where, limit, updateDoc, serverTimestamp, addDoc } from "./js/firebase-config.js";
+import { fmt, toast, getParam, btnLoading, normalisePhone, isValidPhone, isValidEmail, generateOrderNumber } from "./js/utils.js";
+import { PAYSTACK_PUBLIC_KEY } from "./js/plans.js";
+
+const ref = getParam("ref");
+
+async function init() {
+  if (!ref) return showState("404", "Invalid link", "This payment link is invalid.");
+
+  // Find link by ref (collectionGroup query)
+  let linkDoc = null;
+  let sellerData = null;
+
+  try {
+    // Search across all paymentLinks
+    const sellersSnap = await getDocs(collection(db, "sellers"));
+    for (const s of sellersSnap.docs) {
+      const linksSnap = await getDocs(query(collection(db, "sellers", s.id, "paymentLinks"), where("ref","==",ref), limit(1)));
+      if (!linksSnap.empty) {
+        linkDoc = { id: linksSnap.docs[0].id, sellerId: s.id, ...linksSnap.docs[0].data() };
+        sellerData = { id: s.id, ...s.data() };
+        break;
+      }
+    }
+  } catch (e) { console.error(e); }
+
+  if (!linkDoc) return showState("😕", "Link not found", "This payment link doesn't exist or has been removed.");
+  if (linkDoc.used && linkDoc.oneTime) return showState("🔒", "Link already used", "This one-time payment link has already been used.");
+  if (linkDoc.expiryDate && new Date(linkDoc.expiryDate) < new Date()) return showState("⏰", "Link expired", "This payment link has expired.");
+
+  // Render
+  document.getElementById("pageLoader").style.display = "none";
+  document.getElementById("payPage").style.display = "";
+  if (sellerData.logoUrl) {
+    document.getElementById("paySellerLogo").src = sellerData.logoUrl;
+    document.getElementById("paySellerLogo").style.display = "";
+  }
+  document.getElementById("paySellerName").textContent  = sellerData.storeName || "—";
+  document.getElementById("payDescription").textContent = linkDoc.description;
+  document.getElementById("payAmount").textContent      = fmt(linkDoc.amount);
+
+  // Submit
+  document.getElementById("payForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn   = document.getElementById("payNowBtn");
+    const name  = document.getElementById("payerName").value.trim();
+    const phone = normalisePhone(document.getElementById("payerPhone").value.trim());
+    const email = document.getElementById("payerEmail").value.trim() || `${phone.replace("+","")}@storvix.ng`;
+
+    if (!name || !isValidPhone(phone)) { toast("Enter your name and phone number.", "error"); return; }
+
+    btnLoading(btn, true, "Pay Now");
+
+    const payRef = `STX_PAY_${Date.now()}`;
+
+    const handler = window.PaystackPop?.setup({
+      key:      PAYSTACK_PUBLIC_KEY,
+      email,
+      amount:   (linkDoc.amount + 100) * 100, // +₦100 storvix fee
+      currency: "NGN",
+      ref:      payRef,
+      metadata: {
+        custom_fields: [
+          { display_name: "Type",      variable_name: "type",      value: "payment_link" },
+          { display_name: "Link Ref",  variable_name: "link_ref",  value: ref },
+          { display_name: "Seller ID", variable_name: "seller_id", value: sellerData.id },
+          { display_name: "Buyer Phone", variable_name: "buyer_phone", value: phone },
+        ]
+      },
+      callback: async (response) => {
+        // Mark link used if one-time
+        if (linkDoc.oneTime) {
+          await updateDoc(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
+            used: true, usedAt: serverTimestamp(), usedBy: { name, phone, email },
+          });
+        }
+        // Save as a transaction
+        showState("🎉", "Payment Successful!", `Thank you, ${name}! Your payment of ${fmt(linkDoc.amount)} to ${sellerData.storeName} has been received.`);
+      },
+      onClose: () => {
+        toast("Payment cancelled.", "info");
+        btnLoading(btn, false, "Pay Now");
+      },
+    });
+
+    handler?.openIframe();
+  });
+}
+
+function showState(icon, title, text) {
+  document.getElementById("pageLoader").style.display = "none";
+  document.getElementById("payPage").style.display = "none";
+  const el = document.getElementById("payStatePage");
+  el.style.display = "flex";
+  document.getElementById("payStateIcon").textContent = icon;
+  document.getElementById("payStateTitle").textContent = title;
+  document.getElementById("payStateText").textContent  = text;
+}
+
+init();
+</script>
+</body>
+</html>

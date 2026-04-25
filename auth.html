@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storvix — Sign In</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+<div id="storvix-toast"></div>
+
+<div class="auth-page">
+
+  <!-- LEFT BRAND PANEL -->
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <a href="index.html" class="auth-brand">
+        <img src="assets/logo.png" alt="Storvix">
+        <span>Storvix</span>
+      </a>
+      <div class="auth-copy">
+        <h2>Everything you need to<br><em>sell better.</em></h2>
+        <p>Open your branded online store in 10 minutes. Paystack payments, Shipbubble delivery, WhatsApp notifications — all from one dashboard.</p>
+      </div>
+      <div class="auth-stats">
+        <div class="auth-stat">
+          <div class="num">10<span style="font-size:.9rem">min</span></div>
+          <div class="lbl">To go live</div>
+        </div>
+        <div class="auth-stat">
+          <div class="num">0%</div>
+          <div class="lbl">Commission</div>
+        </div>
+        <div class="auth-stat">
+          <div class="num">₦0</div>
+          <div class="lbl">To start</div>
+        </div>
+      </div>
+      <div class="auth-trust">
+        <div class="auth-trust-item">
+          <div class="auth-trust-dot"></div>
+          <span>Paystack secured</span>
+        </div>
+        <div class="auth-trust-item">
+          <div class="auth-trust-dot"></div>
+          <span>Nigerian-built</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT FORM PANEL -->
+  <div class="auth-right">
+    <div class="auth-box">
+
+      <!-- ── AUTH SECTION (login + signup) ── -->
+      <div id="authSection">
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Log In</button>
+          <button class="auth-tab" data-tab="signup">Create Account</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div class="auth-panel active" id="loginPanel">
+          <h2 class="auth-panel-title">Welcome back</h2>
+          <p class="auth-panel-sub">Log in to manage your store.</p>
+
+          <button class="btn-google" id="googleLoginBtn" type="button">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+            Continue with Google
+          </button>
+
+          <div class="divider"><span>or continue with email</span></div>
+
+          <form class="auth-form" id="loginForm" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="loginEmail">Email address</label>
+              <input class="form-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="loginPassword">
+                Password
+                <button type="button" class="forgot-link" id="forgotBtn">Forgot password?</button>
+              </label>
+              <div class="pass-wrap">
+                <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+                <button type="button" class="pass-toggle" data-target="loginPassword">👁</button>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Log In</button>
+          </form>
+
+          <p class="auth-terms" style="margin-top:20px">
+            No account? <a href="#" id="goToSignup">Create one free →</a>
+          </p>
+        </div>
+
+        <!-- SIGNUP -->
+        <div class="auth-panel" id="signupPanel">
+          <h2 class="auth-panel-title">Open your store</h2>
+          <p class="auth-panel-sub">14-day free trial. No credit card needed.</p>
+
+          <button class="btn-google" id="googleSignupBtn" type="button">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+            Sign up with Google
+          </button>
+
+          <div class="divider"><span>or sign up with email</span></div>
+
+          <form class="auth-form" id="signupForm" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="signupName">Full name</label>
+              <input class="form-input" type="text" id="signupName" placeholder="Amaka Okonkwo" autocomplete="name">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="signupEmail">Email address</label>
+              <input class="form-input" type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="signupPassword">Password</label>
+              <div class="pass-wrap">
+                <input class="form-input" type="password" id="signupPassword" placeholder="Min. 6 characters" autocomplete="new-password">
+                <button type="button" class="pass-toggle" data-target="signupPassword">👁</button>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Create Account →</button>
+          </form>
+
+          <p class="auth-terms">
+            By signing up you agree to our
+            <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── PLAN SELECTION SECTION ── -->
+      <div id="planSection" style="display:none">
+        <div class="plan-panel-header">
+          <h2>Choose your plan</h2>
+          <p>Start free for 14 days. No credit card required.</p>
+        </div>
+
+        <div class="plan-billing-toggle">
+          <div class="plan-billing-btn active" data-billing="monthly">Monthly</div>
+          <div class="plan-billing-btn" data-billing="annual">
+            Annual <span class="save-badge">Save 17%</span>
+          </div>
+        </div>
+
+        <div class="plan-cards-grid" id="planCardsGrid">
+          <!-- Injected by JS -->
+        </div>
+
+        <button class="btn btn-primary btn-block plan-select-btn" id="planSelectBtn">
+          Start 14-Day Free Trial →
+        </button>
+        <p class="plan-trial-note">✓ No credit card needed &nbsp;·&nbsp; Cancel anytime</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/auth.js"></script>
+</body>
+</html>

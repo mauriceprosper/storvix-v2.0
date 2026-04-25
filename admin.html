@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storvix Admin</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+<div id="storvix-toast"></div>
+<div class="page-loader" id="adminLoader"><div class="spinner"></div></div>
+
+<!-- Access denied (shown if not admin) -->
+<div id="accessDenied" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px">
+  <div>
+    <div style="font-size:5rem">🔒</div>
+    <h2>Access Denied</h2>
+    <p style="color:var(--text-muted);max-width:400px;margin:12px auto 24px">You don't have permission to access the admin panel.</p>
+    <a href="dashboard.html" class="btn btn-primary">Go to Dashboard</a>
+  </div>
+</div>
+
+<div class="admin-layout" id="adminLayout" style="display:none">
+  <aside class="admin-sidebar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="">
+      <span>Admin</span>
+    </div>
+    <nav>
+      <div class="admin-nav-item active" data-tab="overview"><span>📊</span> Overview</div>
+      <div class="admin-nav-item" data-tab="sellers"><span>👥</span> Sellers</div>
+      <div class="admin-nav-item" data-tab="orders"><span>📦</span> All Orders</div>
+      <div class="admin-nav-item" data-tab="withdrawals"><span>💸</span> Withdrawals</div>
+      <div class="admin-nav-item" data-tab="settings"><span>⚙️</span> Settings</div>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+
+    <!-- OVERVIEW -->
+    <div class="admin-tab active" id="adminTab-overview">
+      <h1 class="admin-section-title">Platform Overview</h1>
+      <div class="kpi-grid" style="margin-bottom:32px">
+        <div class="kpi-card"><div class="kpi-label">Total GMV</div><div class="kpi-value" id="adminGmv">₦0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Sellers</div><div class="kpi-value" id="adminSellerCount">0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Orders</div><div class="kpi-value" id="adminOrderCount">0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pending Payouts</div><div class="kpi-value" id="adminPendingPayouts">0</div></div>
+      </div>
+    </div>
+
+    <!-- SELLERS -->
+    <div class="admin-tab" id="adminTab-sellers">
+      <h1 class="admin-section-title">Sellers</h1>
+      <div class="filter-bar" style="margin-bottom:16px">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search by store name or email…" id="adminSellerSearch">
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Store</th><th>Owner</th><th>Plan</th><th>Status</th><th>Orders</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminSellersBody">
+              <tr><td colspan="7" class="text-center" style="padding:48px;color:var(--text-muted)">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="admin-tab" id="adminTab-orders">
+      <h1 class="admin-section-title">All Orders</h1>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Order #</th><th>Store</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+            </thead>
+            <tbody id="adminOrdersBody">
+              <tr><td colspan="6" class="text-center" style="padding:48px;color:var(--text-muted)">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div class="admin-tab" id="adminTab-withdrawals">
+      <h1 class="admin-section-title">Withdrawal Queue</h1>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Seller</th><th>Amount</th><th>Bank</th><th>Status</th><th>Requested</th><th>Action</th></tr>
+            </thead>
+            <tbody id="adminWithdrawalsBody">
+              <tr><td colspan="6" class="text-center" style="padding:48px;color:var(--text-muted)">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="admin-tab" id="adminTab-settings">
+      <h1 class="admin-section-title">Platform Settings</h1>
+      <div class="card" style="margin-bottom:16px">
+        <h4 style="margin-bottom:12px">Webhook URLs</h4>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Paystack Charge Webhook</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" readonly value="https://europe-west1-storvix-95bc8.cloudfunctions.net/paystackWebhook" id="webhookCharge">
+            <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('webhookCharge').value, 'Webhook URL copied!')">Copy</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Paystack Subscription Webhook</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" readonly value="https://europe-west1-storvix-95bc8.cloudfunctions.net/subscriptionWebhook" id="webhookSub">
+            <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('webhookSub').value, 'Webhook URL copied!')">Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:8px">Support</h4>
+        <p style="color:var(--text-muted)">Contact: <a href="mailto:usestorvix@gmail.com" style="color:var(--purple);font-weight:600">usestorvix@gmail.com</a></p>
+        <p style="color:var(--text-muted)">WhatsApp: <a href="https://wa.me/2347089510199" style="color:var(--purple);font-weight:600">+234 708 951 0199</a></p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>

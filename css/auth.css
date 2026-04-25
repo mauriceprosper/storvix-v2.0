@@ -1,0 +1,167 @@
+/* ============================================================
+   STORVIX — Auth + Plan Selection Styles (css/auth.css)
+============================================================ */
+
+/* ── Layout ─────────────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh; display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 860px) { .auth-page { grid-template-columns: 1fr; } }
+
+/* ── Left Panel ─────────────────────────────────────────── */
+.auth-left {
+  background: linear-gradient(155deg, #1a0a4a 0%, #2d1166 40%, #4c1d95 100%);
+  padding: 48px; display: flex; flex-direction: column; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.auth-left::before {
+  content: ""; position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+.auth-left-content { position: relative; z-index: 1; max-width: 420px; }
+
+.auth-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
+.auth-brand img { width: 40px; height: 40px; border-radius: 10px; }
+.auth-brand span { font-size: 1.5rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+
+.auth-copy { margin-bottom: 48px; }
+.auth-copy h2 {
+  font-size: 2rem; font-weight: 800; color: #fff;
+  line-height: 1.2; margin-bottom: 16px;
+}
+.auth-copy h2 em { font-style: normal; color: #C4B5FD; }
+.auth-copy p { color: rgba(255,255,255,0.7); font-size: 1.0625rem; line-height: 1.7; }
+
+.auth-stats { display: flex; gap: 32px; }
+.auth-stat .num {
+  font-size: 2rem; font-weight: 800; color: #fff; line-height: 1;
+}
+.auth-stat .lbl { font-size: 0.8125rem; color: rgba(255,255,255,0.55); margin-top: 4px; }
+
+.auth-trust {
+  display: flex; gap: 20px; margin-top: 48px; padding-top: 32px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.auth-trust-item {
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255,255,255,0.65); font-size: 0.875rem;
+}
+.auth-trust-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; }
+
+@media (max-width: 860px) { .auth-left { display: none; } }
+
+/* ── Right Panel ────────────────────────────────────────── */
+.auth-right {
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px 32px; background: var(--bg);
+}
+.auth-box {
+  background: var(--white); border-radius: var(--r-lg);
+  padding: 40px; width: 100%; max-width: 480px;
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+}
+@media (max-width: 480px) { .auth-box { padding: 28px 20px; } }
+
+/* ── Tabs ───────────────────────────────────────────────── */
+.auth-tabs {
+  display: flex; background: var(--bg); border-radius: var(--r);
+  padding: 4px; gap: 4px; margin-bottom: 28px;
+}
+.auth-tab {
+  flex: 1; padding: 9px 16px; border-radius: calc(var(--r) - 2px);
+  font-size: 0.9375rem; font-weight: 600; color: var(--text-muted);
+  transition: all 0.15s ease; cursor: pointer;
+}
+.auth-tab.active {
+  background: var(--white); color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Panels ─────────────────────────────────────────────── */
+.auth-panel { display: none; }
+.auth-panel.active { display: block; }
+
+.auth-panel-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+.auth-panel-sub   { color: var(--text-muted); margin-bottom: 24px; }
+
+.auth-form { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.auth-terms {
+  font-size: 0.8125rem; color: var(--text-muted); margin-top: 16px; text-align: center;
+}
+.auth-terms a { color: var(--purple); font-weight: 600; }
+
+.forgot-link {
+  font-size: 0.8125rem; color: var(--purple); font-weight: 600;
+  cursor: pointer; background: none; border: none; padding: 0;
+}
+
+/* ── Plan Selection Panel ───────────────────────────────── */
+.plan-panel { display: none; }
+.plan-panel.active { display: block; }
+.plan-panel-header { margin-bottom: 24px; }
+.plan-panel-header h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+.plan-panel-header p { color: var(--text-muted); font-size: 0.9375rem; }
+
+.plan-billing-toggle {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  margin-bottom: 20px; background: var(--bg); border-radius: var(--r); padding: 8px;
+}
+.plan-billing-btn {
+  flex: 1; padding: 8px; border-radius: calc(var(--r) - 2px);
+  font-size: 0.875rem; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.plan-billing-btn.active { background: var(--white); color: var(--text); box-shadow: var(--shadow-sm); }
+.plan-billing-btn .save-badge {
+  background: var(--green); color: #fff; font-size: 0.6875rem;
+  padding: 1px 6px; border-radius: var(--r-full); margin-left: 4px;
+}
+
+.plan-cards-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;
+}
+@media (max-width: 540px) { .plan-cards-grid { grid-template-columns: 1fr; } }
+
+.plan-card {
+  border: 2px solid var(--border); border-radius: var(--r-md);
+  padding: 16px; cursor: pointer; transition: all 0.2s; position: relative;
+  background: var(--white);
+}
+.plan-card:hover { border-color: var(--purple); box-shadow: var(--shadow-md); }
+.plan-card.selected { border-color: var(--purple); background: var(--purple-100); }
+.plan-card.popular::before {
+  content: "Most Popular"; position: absolute; top: -12px; left: 50%;
+  transform: translateX(-50%); background: var(--purple); color: #fff;
+  font-size: 0.6875rem; font-weight: 700; padding: 3px 12px;
+  border-radius: var(--r-full); white-space: nowrap;
+}
+
+.plan-card-name  { font-weight: 700; font-size: 0.9375rem; color: var(--text); }
+.plan-card-price { font-size: 1.25rem; font-weight: 800; color: var(--text); margin: 4px 0; }
+.plan-card-price span { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+.plan-card-products { font-size: 0.8125rem; color: var(--text-muted); }
+
+.plan-select-btn { margin-top: 20px; width: 100%; }
+.plan-trial-note {
+  text-align: center; font-size: 0.8125rem; color: var(--text-muted); margin-top: 12px;
+}
+
+/* ── Divider ────────────────────────────────────────────── */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-muted); font-size: 0.875rem; margin: 16px 0;
+}
+.divider::before, .divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
+
+/* ── Password toggle ────────────────────────────────────── */
+.pass-wrap { position: relative; }
+.pass-wrap .form-input { padding-right: 44px; }
+.pass-toggle {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 1.125rem; padding: 4px;
+}
