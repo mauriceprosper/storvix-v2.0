@@ -2,6 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script>
+    // Subdomain router — runs first, before anything else loads.
+    // If visitor is on a subdomain like amaka.storvix.ng, redirect to store page.
+    (function () {
+      var h = window.location.hostname;
+      // Match: anything.storvix.ng (but not www.storvix.ng or storvix.ng itself)
+      var m = h.match(/^([a-z0-9][a-z0-9-]*)\.storvix\.ng$/i);
+      if (m && m[1].toLowerCase() !== "www") {
+        // Replace, not assign — so back button doesn't loop here
+        window.location.replace("/store.html?slug=" + m[1] + window.location.search.replace(/^\?/, "&"));
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Storvix — Open your branded online store in 10 minutes</title>
   <meta name="description" content="The Nigerian-built e-commerce platform for product brands. Branded online stores, Paystack payments, WhatsApp orders, Shipbubble delivery. Start free.">

@@ -7,16 +7,6 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "((?!www\\.)[a-z0-9-]+)\\.storvix\\.ng"
-        }
-      ],
-      "destination": "/store.html"
-    },
     { "source": "/store",      "destination": "/store.html" },
     { "source": "/store/(.*)", "destination": "/store.html" },
     { "source": "/pay",        "destination": "/pay.html" },
