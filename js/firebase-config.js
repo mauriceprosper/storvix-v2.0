@@ -110,13 +110,13 @@ export async function checkSlugAvailable(slug, currentUid = null) {
 
 // ── Products ─────────────────────────────────────────────────
 export async function getProducts(sellerId, opts = {}) {
-  const constraints = [];
-  if (!opts.includeInactive) constraints.push(where("active", "!=", false));
-  if (!opts.includeDrafts)   constraints.push(where("draft",  "!=", true));
-  constraints.push(orderBy("createdAt", "desc"));
-  const q    = query(collection(db, "sellers", sellerId, "products"), ...constraints);
+  // Always order by createdAt; filter active products in code (avoids Firestore != combo limit)
+  const q    = query(collection(db, "sellers", sellerId, "products"), orderBy("createdAt", "desc"));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  let items  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (!opts.includeInactive) items = items.filter(p => p.active !== false);
+  if (!opts.includeDrafts)   items = items.filter(p => p.draft !== true);
+  return items;
 }
 
 export async function addProduct(sellerId, data) {
