@@ -496,14 +496,36 @@ async function fetchDeliveryRates() {
         <div class="courier-price">${fmt(r.fee)}</div>
       </div>`).join("");
   } catch {
-    // Flat rate fallback
-    opts.innerHTML = `
-      <div class="courier-option selected" onclick="selectCourier(this,1500,'Standard Delivery')">
+    // Smart fallback — three realistic options based on state distance
+    const state       = document.getElementById("buyerState").value || "Lagos";
+    const sellerState = seller.state || "Lagos";
+    const sameState   = state.toLowerCase() === sellerState.toLowerCase();
+    const lagosNeighbors = ["Ogun","Oyo","Osun","Ondo","Ekiti"];
+    const isNeighbor  = lagosNeighbors.includes(state) && sellerState === "Lagos";
+
+    // Pricing tiers: same-state · neighbor · far state
+    let std, exp, sd;
+    if (sameState)      { std = 1500; exp = 2800; sd = 4500; }
+    else if (isNeighbor){ std = 2200; exp = 3800; sd = null; }   // no same-day for inter-state
+    else                { std = 3500; exp = 5500; sd = null; }
+
+    let html = `
+      <div class="courier-option" onclick="selectCourier(this,${std},'Standard Delivery')">
         <div><div class="courier-name">Standard Delivery</div><div class="courier-eta">3–5 business days</div></div>
-        <div class="courier-price">${fmt(1500)}</div>
+        <div class="courier-price">${fmt(std)}</div>
+      </div>
+      <div class="courier-option" onclick="selectCourier(this,${exp},'Express Delivery')">
+        <div><div class="courier-name">Express Delivery</div><div class="courier-eta">1–2 business days</div></div>
+        <div class="courier-price">${fmt(exp)}</div>
       </div>`;
-    selectedCourier = { name: "Standard Delivery", fee: 1500 };
-    renderCartSummary(1500);
+
+    if (sd) html += `
+      <div class="courier-option" onclick="selectCourier(this,${sd},'Same-Day Delivery')">
+        <div><div class="courier-name">Same-Day Delivery</div><div class="courier-eta">Within ${sameState ? "Lagos" : "the state"}, today</div></div>
+        <div class="courier-price">${fmt(sd)}</div>
+      </div>`;
+
+    opts.innerHTML = html;
   }
 }
 
