@@ -12,7 +12,7 @@
       "has": [
         {
           "type": "host",
-          "value": "(?<slug>[^.]+)\\.storvix\\.ng"
+          "value": "((?!www\\.)[a-z0-9-]+)\\.storvix\\.ng"
         }
       ],
       "destination": "/store.html"
@@ -33,18 +33,6 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options",        "value": "SAMEORIGIN" },
         { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" }
-      ]
-    },
-    {
-      "source": "/(.*\\.js)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
-      ]
-    },
-    {
-      "source": "/(.*\\.css)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
       ]
     }
   ]
