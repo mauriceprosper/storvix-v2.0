@@ -18,24 +18,15 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 // ── Credentials (from .env or hardcoded for first run) ──────
-// ── Credentials (REQUIRED — set as env vars before running) ──
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-if (!PAYSTACK_SECRET) {
-  console.error("✗ PAYSTACK_SECRET_KEY env var is required. Set it before running:");
-  console.error("  Windows PowerShell:  $env:PAYSTACK_SECRET_KEY=\"sk_live_...\"; npm run setup");
-  console.error("  macOS / Linux:        PAYSTACK_SECRET_KEY=sk_live_... npm run setup");
-  process.exit(1);
-}
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY
+  || "sk_live_df6ac8c86ec4ed7c602897d7f40c5338bbba8028";
 
 const SECRETS = {
-  PAYSTACK_SECRET_KEY:  process.env.PAYSTACK_SECRET_KEY,
-  SENDCHAMP_PUBLIC_KEY: process.env.SENDCHAMP_PUBLIC_KEY,
-  SHIPBUBBLE_API_KEY:   process.env.SHIPBUBBLE_API_KEY,
-  RESEND_API_KEY:       process.env.RESEND_API_KEY,
+  PAYSTACK_SECRET_KEY:  process.env.PAYSTACK_SECRET_KEY  || "sk_live_df6ac8c86ec4ed7c602897d7f40c5338bbba8028",
+  SENDCHAMP_PUBLIC_KEY: process.env.SENDCHAMP_PUBLIC_KEY || "sendchamp_live_$2a$10$psk9ugtML/.5fLmK44VGyuaVCAPYw4cbTp1rwG5MxSIiUG8B62Oe.",
+  SHIPBUBBLE_API_KEY:   process.env.SHIPBUBBLE_API_KEY   || "sb_prod_13cb49c482e52a78b67065440ab3b3e690fe0496c021622895db1d5be7d5aaa3",
+  RESEND_API_KEY:       process.env.RESEND_API_KEY       || "re_hH21MD7D_AQxg6HjgT2mKxiMd5thZpwg2",
 };
-for (const [k, v] of Object.entries(SECRETS)) {
-  if (!v) { console.error(`✗ ${k} env var is required.`); process.exit(1); }
-}
 
 // ── Plan Definitions ─────────────────────────────────────────
 const PLANS = [
@@ -170,15 +161,23 @@ function setFirebaseSecrets() {
   }
 
   for (const [name, value] of Object.entries(SECRETS)) {
+    // Write secret to a temp file, then feed to Firebase CLI via --data-file
+    // This avoids PowerShell's pipe handling issues with special chars like $
+    const tmpFile = path.join(__dirname, `.tmp_secret_${name}`);
     try {
-      // Use --data-file=- to pipe the value (non-interactive)
-      execSync(`echo "${value}" | firebase functions:secrets:set ${name} --data-file=- --project storvix-95bc8 --force`, {
-        stdio: ["pipe", "pipe", "pipe"],
-        shell: true,
-      });
+      fs.writeFileSync(tmpFile, value, { encoding: "utf8" });
+      execSync(
+        `firebase functions:secrets:set ${name} --data-file "${tmpFile}" --project storvix-95bc8 --force`,
+        { stdio: ["ignore", "pipe", "pipe"] }
+      );
       log(`  ✓  Set: ${name}`, "green");
     } catch (e) {
-      log(`  ✗  Failed to set ${name}: ${e.message?.slice(0, 100)}`, "red");
+      const msg = (e.stderr || e.stdout || e.message || "").toString();
+      log(`  ✗  Failed to set ${name}`, "red");
+      log(`     ${msg.split("\n")[0].slice(0, 120)}`, "red");
+    } finally {
+      // Clean up temp file
+      try { fs.unlinkSync(tmpFile); } catch {}
     }
   }
   return true;

@@ -10,8 +10,7 @@ const { onSchedule }        = require("firebase-functions/v2/scheduler");
 const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const crypto  = require("crypto");
-const https   = require("https");
-const fetch   = (...args) => import("node-fetch").then(({default: f}) => f(...args));
+// Node 22 has global fetch — no node-fetch needed
 
 initializeApp();
 const db = getFirestore();
@@ -23,6 +22,19 @@ const SHIPBUBBLE_KEY    = process.env.SHIPBUBBLE_API_KEY;
 const RESEND_KEY        = process.env.RESEND_API_KEY;
 const DASHBOARD_URL     = "https://storvix.ng/dashboard.html";
 const FUNCTIONS_REGION  = "europe-west1";
+
+// CORS allowlist — these origins can call onCall functions.
+// Includes apex, www, all subdomains (storefronts), and Vercel preview.
+const CORS_ORIGINS = [
+  "https://storvix.ng",
+  "https://www.storvix.ng",
+  /^https:\/\/[a-z0-9-]+\.storvix\.ng$/,        // *.storvix.ng (subdomains)
+  /^https:\/\/storvix-v2-0-.+\.vercel\.app$/,   // Vercel previews
+  "https://storvix-v2-0.vercel.app",            // Vercel production
+  "http://localhost:3000",
+  "http://127.0.0.1:5500",
+];
+const CALLABLE_OPTS = { region: FUNCTIONS_REGION, cors: CORS_ORIGINS };
 
 // ═══════════════════════════════════════════════════════════════
 //  HELPERS
@@ -308,7 +320,7 @@ exports.onOrderStatusChange = onDocumentUpdated({
 // ═══════════════════════════════════════════════════════════════
 //  4. getDeliveryRates (Callable)
 // ═══════════════════════════════════════════════════════════════
-exports.getDeliveryRates = onCall({ region: FUNCTIONS_REGION }, async (request) => {
+exports.getDeliveryRates = onCall(CALLABLE_OPTS, async (request) => {
   const { city, state, sellerState, items } = request.data;
   const weight = (items || []).reduce((s, i) => s + (i.qty * 0.5), 0.5);
 
@@ -338,7 +350,7 @@ exports.getDeliveryRates = onCall({ region: FUNCTIONS_REGION }, async (request) 
 // ═══════════════════════════════════════════════════════════════
 //  5. verifyBankAccount (Callable)
 // ═══════════════════════════════════════════════════════════════
-exports.verifyBankAccount = onCall({ region: FUNCTIONS_REGION }, async (request) => {
+exports.verifyBankAccount = onCall(CALLABLE_OPTS, async (request) => {
   const { accountNumber, bankCode } = request.data;
   if (!accountNumber || !bankCode) throw new Error("accountNumber and bankCode required");
 
@@ -350,7 +362,7 @@ exports.verifyBankAccount = onCall({ region: FUNCTIONS_REGION }, async (request)
 // ═══════════════════════════════════════════════════════════════
 //  6. processPayout (Callable — admin only)
 // ═══════════════════════════════════════════════════════════════
-exports.processPayout = onCall({ region: FUNCTIONS_REGION }, async (request) => {
+exports.processPayout = onCall(CALLABLE_OPTS, async (request) => {
   const { withdrawalId } = request.data;
   const wSnap = await db.doc(`withdrawals/${withdrawalId}`).get();
   if (!wSnap.exists) throw new Error("Withdrawal not found");
@@ -393,7 +405,7 @@ exports.processPayout = onCall({ region: FUNCTIONS_REGION }, async (request) => 
 // ═══════════════════════════════════════════════════════════════
 //  7. createPaymentLink (Callable)
 // ═══════════════════════════════════════════════════════════════
-exports.createPaymentLink = onCall({ region: FUNCTIONS_REGION }, async (request) => {
+exports.createPaymentLink = onCall(CALLABLE_OPTS, async (request) => {
   if (!request.auth) throw new Error("Unauthorized");
   const uid = request.auth.uid;
   const { description, amount, oneTime, expiryDate } = request.data;
@@ -410,7 +422,7 @@ exports.createPaymentLink = onCall({ region: FUNCTIONS_REGION }, async (request)
 // ═══════════════════════════════════════════════════════════════
 //  8. generateInvoice (Callable)
 // ═══════════════════════════════════════════════════════════════
-exports.generateInvoice = onCall({ region: FUNCTIONS_REGION }, async (request) => {
+exports.generateInvoice = onCall(CALLABLE_OPTS, async (request) => {
   if (!request.auth) throw new Error("Unauthorized");
   const { orderId } = request.data;
   const uid = request.auth.uid;
@@ -427,7 +439,7 @@ exports.generateInvoice = onCall({ region: FUNCTIONS_REGION }, async (request) =
 // ═══════════════════════════════════════════════════════════════
 //  9. sendNotification (Callable)
 // ═══════════════════════════════════════════════════════════════
-exports.sendNotification = onCall({ region: FUNCTIONS_REGION }, async (request) => {
+exports.sendNotification = onCall(CALLABLE_OPTS, async (request) => {
   if (!request.auth) throw new Error("Unauthorized");
   const { phone, message } = request.data;
   await sendWhatsApp(phone, message);
