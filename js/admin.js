@@ -6,7 +6,7 @@
 import {
   auth, db, onAuthStateChanged, isAdmin, ADMIN_EMAILS,
   collection, getDocs, collectionGroup, query, orderBy, limit, where,
-  doc, updateDoc, serverTimestamp, callProcessPayout,
+  doc, updateDoc, serverTimestamp, callProcessPayout, callBackfillWallets,
 } from "./firebase-config.js";
 import { fmt, toast, fmtDate, timeAgo, statusBadge, planBadge, copyToClipboard } from "./utils.js";
 
@@ -189,3 +189,38 @@ window.processPayout = async (id) => {
 };
 
 window.copyToClipboard = copyToClipboard;
+
+// ── Backfill Wallets ──────────────────────────────────────
+document.getElementById("backfillBtn")?.addEventListener("click", async () => {
+  const btn  = document.getElementById("backfillBtn");
+  const out  = document.getElementById("backfillResult");
+
+  if (!confirm("Run wallet backfill? This will scan all paid orders and credit any sellers that were missed. Safe to run multiple times.")) return;
+
+  btn.disabled = true;
+  btn.textContent = "Running… (this may take a minute)";
+  out.style.display = "";
+  out.textContent = "Working…";
+
+  try {
+    const res = await callBackfillWallets();
+    const r   = res.data;
+    out.textContent =
+      `✅ Backfill complete!\n\n` +
+      `Sellers scanned:  ${r.sellersScanned}\n` +
+      `Orders scanned:   ${r.ordersScanned}\n` +
+      `Credits issued:   ${r.creditsIssued}\n` +
+      `Already credited: ${r.skipped} (skipped)\n` +
+      `Total credited:   ₦${(r.totalCredited || 0).toLocaleString()}\n\n` +
+      (r.perSeller?.length
+        ? `Per seller:\n${r.perSeller.map(s => `  • ${s.storeName || s.sellerId.slice(0,8)}: +₦${s.credited.toLocaleString()} (${s.skipped} skipped)`).join("\n")}`
+        : "No new credits issued — all paid orders were already credited.");
+    toast("Backfill complete!", "success");
+  } catch (e) {
+    out.textContent = "❌ Failed: " + (e.message || "Unknown error");
+    toast("Backfill failed: " + (e.message || "Unknown error"), "error");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "Run Wallet Backfill";
+});

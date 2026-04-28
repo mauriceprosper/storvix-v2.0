@@ -130,6 +130,14 @@
           </div>
         </div>
       </div>
+      <div class="card" style="margin-bottom:16px">
+        <h4 style="margin-bottom:8px">Wallet Maintenance</h4>
+        <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:14px">
+          Scan all paid orders and credit any seller wallets that were missed (e.g. before the webhook was set up). Safe to run multiple times — won't double-credit.
+        </p>
+        <button class="btn btn-primary" id="backfillBtn">Run Wallet Backfill</button>
+        <pre id="backfillResult" style="margin-top:14px;padding:12px;background:var(--bg);border-radius:8px;font-size:.8rem;display:none;white-space:pre-wrap;max-height:400px;overflow:auto"></pre>
+      </div>
       <div class="card">
         <h4 style="margin-bottom:8px">Support</h4>
         <p style="color:var(--text-muted)">Contact: <a href="mailto:usestorvix@gmail.com" style="color:var(--purple);font-weight:600">usestorvix@gmail.com</a></p>
