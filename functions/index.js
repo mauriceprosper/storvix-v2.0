@@ -590,7 +590,8 @@ exports.renewalReminderScheduler = onSchedule({
 //  Callable only by admin emails. Safe to run multiple times.
 // ═══════════════════════════════════════════════════════════════
 exports.backfillWallets = onCall(CALLABLE_OPTS, async (request) => {
-  const callerEmail = request.auth?.token?.email;
+  const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
+  const callerEmail  = (request.auth?.token?.email || "").toLowerCase().trim();
   if (!ADMIN_EMAILS.includes(callerEmail)) {
     throw new Error("Permission denied. Admin only.");
   }
