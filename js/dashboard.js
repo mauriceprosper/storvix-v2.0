@@ -3,7 +3,7 @@
 // ============================================================
 
 import {
-  auth, db, onAuthStateChanged, getSeller, updateSeller,
+  auth, db, onAuthStateChanged, getSeller, updateSeller, isAdmin,
   listenOrders, updateOrderStatus, getProducts, addProduct, updateProduct, deleteProduct,
   getCustomers, getDiscounts, getPaymentLinks, getTransactions, getTestimonials,
   uploadImage, requestWithdrawal, logOut,
@@ -39,7 +39,11 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "auth.html"; return; }
 
   seller = await getSeller(user.uid);
-  if (!seller?.slug) { window.location.href = "onboarding.html"; return; }
+  if (!seller?.slug) {
+    // If user is admin without a store, send to admin panel instead of onboarding
+    if (isAdmin(user.email)) { window.location.href = "admin.html"; return; }
+    window.location.href = "onboarding.html"; return;
+  }
 
   initUI();
   startListeners(user.uid);

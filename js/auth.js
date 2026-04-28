@@ -5,7 +5,7 @@
 
 import {
   auth, onAuthStateChanged, logIn, signUp, googleSignIn,
-  resetPassword, setDisplayName, getSeller,
+  resetPassword, setDisplayName, getSeller, isAdmin,
 } from "./firebase-config.js";
 import { toast, btnLoading, getParam } from "./utils.js";
 import { PLANS } from "./plans.js";
@@ -40,6 +40,13 @@ onAuthStateChanged(auth, async (user) => {
   if (waitingForPlan) return; // Plan selection in progress
 
   try {
+    // Admins go straight to admin panel — no store required
+    if (isAdmin(user.email)) {
+      const seller = await getSeller(user.uid);
+      // Admin with a store: respect their choice (dashboard); admin without store: admin panel
+      window.location.href = seller?.slug ? "dashboard.html" : "admin.html";
+      return;
+    }
     const seller = await getSeller(user.uid);
     if (!seller) {
       // Check if plan already chosen (e.g. Google sign-in on signup path)
