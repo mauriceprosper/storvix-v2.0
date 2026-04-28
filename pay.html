@@ -122,17 +122,16 @@ async function init() {
           { display_name: "Buyer Phone", variable_name: "buyer_phone", value: phone },
         ]
       },
-      callback: async (response) => {
-        // Mark link used if one-time
+      callback: function (response) {
+        // Mark link used if one-time (fire and forget)
         if (linkDoc.oneTime) {
-          await updateDoc(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
+          updateDoc(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
             used: true, usedAt: serverTimestamp(), usedBy: { name, phone, email },
-          });
+          }).catch(() => {});
         }
-        // Save as a transaction
         showState("🎉", "Payment Successful!", `Thank you, ${name}! Your payment of ${fmt(linkDoc.amount)} to ${sellerData.storeName} has been received.`);
       },
-      onClose: () => {
+      onClose: function () {
         toast("Payment cancelled.", "info");
         btnLoading(btn, false, "Pay Now");
       },

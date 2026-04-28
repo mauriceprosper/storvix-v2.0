@@ -455,7 +455,9 @@ document.getElementById("checkoutNextBtn")?.addEventListener("click", async () =
     if (!isValidPhone(phone)) { toast("Enter a valid phone number.", "error"); return; }
     checkoutStep = 2;
     renderCheckoutStep();
-    fetchDeliveryRates();
+    // Don't fetch yet — user hasn't entered state. Show prompt instead.
+    document.getElementById("courierOptions").innerHTML =
+      `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.9rem">Enter your delivery address above to see options</div>`;
   } else if (checkoutStep === 2) {
     const street = document.getElementById("buyerStreet").value.trim();
     const city   = document.getElementById("buyerCity").value.trim();
@@ -469,6 +471,20 @@ document.getElementById("checkoutNextBtn")?.addEventListener("click", async () =
   }
 });
 
+// Refetch rates whenever the state changes on step 2
+document.getElementById("buyerState")?.addEventListener("change", () => {
+  if (checkoutStep === 2 && document.getElementById("buyerState").value) {
+    fetchDeliveryRates();
+  }
+});
+
+// Also refetch when city loses focus (helps Shipbubble accuracy)
+document.getElementById("buyerCity")?.addEventListener("blur", () => {
+  if (checkoutStep === 2 && document.getElementById("buyerState").value && document.getElementById("buyerCity").value.trim()) {
+    fetchDeliveryRates();
+  }
+});
+
 document.getElementById("checkoutBackBtn")?.addEventListener("click", () => {
   checkoutStep = Math.max(1, checkoutStep - 1);
   renderCheckoutStep();
@@ -479,14 +495,19 @@ async function fetchDeliveryRates() {
   opts.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted)">Getting delivery rates…</div>`;
   selectedCourier = null;
 
+  const buyerState  = document.getElementById("buyerState").value || "Lagos";
+  const buyerCity   = document.getElementById("buyerCity").value.trim() || "Lagos";
+  const sellerState = (seller.state || "Lagos").trim();
+
+  console.log("[Storvix] Delivery rate request:", { buyerState, buyerCity, sellerState });
+
   try {
     const { callGetDeliveryRates } = await import("./firebase-config.js");
-    const city  = document.getElementById("buyerCity").value.trim() || "Lagos";
-    const state = document.getElementById("buyerState").value || "Lagos";
-    const res   = await callGetDeliveryRates({ city, state, sellerState: seller.state || "Lagos", items: cart });
+    const res   = await callGetDeliveryRates({ city: buyerCity, state: buyerState, sellerState, items: cart });
     const rates = res.data?.rates || [];
 
     if (!rates.length) throw new Error("No rates");
+    console.log("[Storvix] Live rates received:", rates);
     opts.innerHTML = rates.map(r => `
       <div class="courier-option" data-code="${r.id}" onclick="selectCourier(this,${r.fee},'${r.name}')">
         <div>
@@ -495,19 +516,22 @@ async function fetchDeliveryRates() {
         </div>
         <div class="courier-price">${fmt(r.fee)}</div>
       </div>`).join("");
-  } catch {
+  } catch (err) {
+    console.warn("[Storvix] Live rates unavailable, using fallback:", err.message);
+
     // Smart fallback — three realistic options based on state distance
-    const state       = document.getElementById("buyerState").value || "Lagos";
-    const sellerState = seller.state || "Lagos";
-    const sameState   = state.toLowerCase() === sellerState.toLowerCase();
-    const lagosNeighbors = ["Ogun","Oyo","Osun","Ondo","Ekiti"];
-    const isNeighbor  = lagosNeighbors.includes(state) && sellerState === "Lagos";
+    const sameState   = buyerState.toLowerCase() === sellerState.toLowerCase();
+    const lagosNeighbors = ["ogun","oyo","osun","ondo","ekiti"];
+    const isNeighbor  = sellerState.toLowerCase() === "lagos"
+                     && lagosNeighbors.includes(buyerState.toLowerCase());
 
     // Pricing tiers: same-state · neighbor · far state
     let std, exp, sd;
     if (sameState)      { std = 1500; exp = 2800; sd = 4500; }
-    else if (isNeighbor){ std = 2200; exp = 3800; sd = null; }   // no same-day for inter-state
+    else if (isNeighbor){ std = 2200; exp = 3800; sd = null; }
     else                { std = 3500; exp = 5500; sd = null; }
+
+    console.log("[Storvix] Fallback pricing:", { tier: sameState ? "same-state" : isNeighbor ? "neighbor" : "far", std, exp, sd });
 
     let html = `
       <div class="courier-option" onclick="selectCourier(this,${std},'Standard Delivery')">
@@ -521,7 +545,7 @@ async function fetchDeliveryRates() {
 
     if (sd) html += `
       <div class="courier-option" onclick="selectCourier(this,${sd},'Same-Day Delivery')">
-        <div><div class="courier-name">Same-Day Delivery</div><div class="courier-eta">Within ${sameState ? "Lagos" : "the state"}, today</div></div>
+        <div><div class="courier-name">Same-Day Delivery</div><div class="courier-eta">Within ${sameState ? sellerState : "the state"}, today</div></div>
         <div class="courier-price">${fmt(sd)}</div>
       </div>`;
 
@@ -615,15 +639,13 @@ async function initiatePayment() {
         { display_name: "Buyer Phone",  variable_name: "buyer_phone",   value: phone },
       ],
     },
-    callback: async (response) => {
+    callback: function (response) {
       // Payment completed — webhook will handle wallet credit + stock decrement
-      // Optimistically update order status (security rule allows status/paymentStatus update)
-      try {
-        await updateDoc(doc(db, "sellers", seller.id, "orders", orderId), {
-          paymentStatus: "paid", status: "confirmed",
-          paymentRef: response.reference, updatedAt: serverTimestamp(),
-        });
-      } catch (e) { console.warn("Order update failed (webhook will retry):", e); }
+      // Run async work in background; don't await
+      updateDoc(doc(db, "sellers", seller.id, "orders", orderId), {
+        paymentStatus: "paid", status: "confirmed",
+        paymentRef: response.reference, updatedAt: serverTimestamp(),
+      }).catch(e => console.warn("Order update failed (webhook will retry):", e));
 
       // Clear cart
       cart = [];
@@ -646,11 +668,11 @@ async function initiatePayment() {
           </div>
         </div>`;
     },
-    onClose: async () => {
-      // Payment cancelled — remove pending order
-      try {
-        await updateDoc(doc(db, "sellers", seller.id, "orders", orderId), { status: "cancelled", paymentStatus: "failed" });
-      } catch {}
+    onClose: function () {
+      // Payment cancelled — remove pending order (fire and forget)
+      updateDoc(doc(db, "sellers", seller.id, "orders", orderId), {
+        status: "cancelled", paymentStatus: "failed"
+      }).catch(() => {});
       toast("Payment cancelled.", "info");
     },
   });
