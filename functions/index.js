@@ -4,7 +4,7 @@
 // ============================================================
 
 const { onRequest }         = require("firebase-functions/v2/https");
-const { onCall }            = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule }        = require("firebase-functions/v2/scheduler");
 const { initializeApp }     = require("firebase-admin/app");
@@ -592,91 +592,131 @@ exports.renewalReminderScheduler = onSchedule({
 exports.backfillWallets = onCall(CALLABLE_OPTS, async (request) => {
   const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
   const callerEmail  = (request.auth?.token?.email || "").toLowerCase().trim();
+
+  console.log("[backfill] Caller email:", callerEmail);
+
+  if (!callerEmail) {
+    throw new HttpsError("unauthenticated", "Not signed in.");
+  }
   if (!ADMIN_EMAILS.includes(callerEmail)) {
-    throw new Error("Permission denied. Admin only.");
+    throw new HttpsError("permission-denied", `${callerEmail} is not an admin.`);
   }
 
-  const sellersSnap = await db.collection("sellers").get();
   const report = {
     sellersScanned: 0,
-    ordersScanned: 0,
-    creditsIssued: 0,
-    skipped: 0,
-    totalCredited: 0,
-    perSeller: [],
+    ordersScanned:  0,
+    creditsIssued:  0,
+    skipped:        0,
+    errors:         0,
+    totalCredited:  0,
+    perSeller:      [],
+    errorDetails:   [],
   };
 
-  for (const sellerDoc of sellersSnap.docs) {
-    report.sellersScanned++;
-    const sellerId  = sellerDoc.id;
-    const sellerRef = sellerDoc.ref;
+  try {
+    const sellersSnap = await db.collection("sellers").get();
+    console.log(`[backfill] Found ${sellersSnap.size} sellers`);
 
-    const ordersSnap = await sellerRef.collection("orders")
-      .where("paymentStatus", "==", "paid").get();
+    for (const sellerDoc of sellersSnap.docs) {
+      report.sellersScanned++;
+      const sellerId  = sellerDoc.id;
+      const sellerRef = sellerDoc.ref;
+      const sellerData = sellerDoc.data();
 
-    let sellerCredited = 0;
-    let sellerSkipped  = 0;
+      let sellerCredited = 0;
+      let sellerSkipped  = 0;
 
-    for (const orderDoc of ordersSnap.docs) {
-      report.ordersScanned++;
-      const order = orderDoc.data();
+      try {
+        // Get all paid orders for this seller
+        const ordersSnap = await sellerRef.collection("orders")
+          .where("paymentStatus", "==", "paid").get();
 
-      // Idempotency check: has this order been credited already?
-      const existingTxn = await sellerRef.collection("transactions")
-        .where("orderId", "==", orderDoc.id)
-        .where("type", "==", "credit")
-        .limit(1)
-        .get();
+        for (const orderDoc of ordersSnap.docs) {
+          report.ordersScanned++;
+          const order = orderDoc.data();
 
-      if (!existingTxn.empty) {
-        sellerSkipped++;
-        report.skipped++;
-        continue;
+          try {
+            // Idempotency check: simpler query (no composite index needed)
+            const existingTxn = await sellerRef.collection("transactions")
+              .where("orderId", "==", orderDoc.id)
+              .limit(1).get();
+
+            // If any txn exists for this order, check if it's a credit
+            const alreadyCredited = !existingTxn.empty
+              && existingTxn.docs.some(d => d.data().type === "credit");
+
+            if (alreadyCredited) {
+              sellerSkipped++;
+              report.skipped++;
+              continue;
+            }
+
+            // Calculate net credit
+            const grossCredit  = (order.subtotal || 0) + (order.deliveryFee || 0);
+            const totalAmount  = order.total || grossCredit;
+            const paystackFee  = Math.round(totalAmount * 0.015 + 100);
+            const netCredit    = grossCredit - paystackFee;
+
+            if (netCredit <= 0) {
+              sellerSkipped++;
+              report.skipped++;
+              continue;
+            }
+
+            // Ensure wallet field exists on seller doc before incrementing
+            if (!sellerData.wallet) {
+              await sellerRef.set({
+                wallet: { balance: 0, totalEarned: 0, totalWithdrawn: 0 }
+              }, { merge: true });
+            }
+
+            // Credit wallet
+            await sellerRef.update({
+              "wallet.balance":     FieldValue.increment(netCredit),
+              "wallet.totalEarned": FieldValue.increment(netCredit),
+            });
+
+            // Record transaction
+            await sellerRef.collection("transactions").add({
+              type:        "credit",
+              amount:      netCredit,
+              description: `Backfill: Order ${order.orderNumber || orderDoc.id}`,
+              orderId:     orderDoc.id,
+              backfill:    true,
+              createdAt:   order.createdAt || FieldValue.serverTimestamp(),
+            });
+
+            sellerCredited += netCredit;
+            report.creditsIssued++;
+            report.totalCredited += netCredit;
+
+          } catch (orderErr) {
+            console.error(`[backfill] Order ${orderDoc.id} failed:`, orderErr.message);
+            report.errors++;
+            report.errorDetails.push({ sellerId, orderId: orderDoc.id, error: orderErr.message });
+          }
+        }
+      } catch (sellerErr) {
+        console.error(`[backfill] Seller ${sellerId} failed:`, sellerErr.message);
+        report.errors++;
+        report.errorDetails.push({ sellerId, error: sellerErr.message });
       }
 
-      // Calculate seller's credit (subtotal + delivery, minus Paystack fee)
-      const grossCredit  = (order.subtotal || 0) + (order.deliveryFee || 0);
-      const totalAmount  = order.total || grossCredit;
-      const paystackFee  = Math.round(totalAmount * 0.015 + 100);
-      const netCredit    = grossCredit - paystackFee;
-
-      if (netCredit <= 0) {
-        sellerSkipped++;
-        report.skipped++;
-        continue;
+      if (sellerCredited > 0 || sellerSkipped > 0) {
+        report.perSeller.push({
+          sellerId,
+          storeName: sellerData.storeName || "(no name)",
+          credited:  sellerCredited,
+          skipped:   sellerSkipped,
+        });
       }
-
-      // Credit wallet
-      await sellerRef.update({
-        "wallet.balance":     FieldValue.increment(netCredit),
-        "wallet.totalEarned": FieldValue.increment(netCredit),
-      });
-
-      // Record transaction (so we don't double-credit)
-      await sellerRef.collection("transactions").add({
-        type:        "credit",
-        amount:      netCredit,
-        description: `Backfill: Order ${order.orderNumber || orderDoc.id}`,
-        orderId:     orderDoc.id,
-        backfill:    true,
-        createdAt:   order.createdAt || FieldValue.serverTimestamp(),
-      });
-
-      sellerCredited += netCredit;
-      report.creditsIssued++;
-      report.totalCredited += netCredit;
     }
 
-    if (sellerCredited > 0 || sellerSkipped > 0) {
-      report.perSeller.push({
-        sellerId,
-        storeName: sellerDoc.data().storeName,
-        credited: sellerCredited,
-        skipped:  sellerSkipped,
-      });
-    }
+    console.log("[backfill] Complete:", JSON.stringify(report, null, 2));
+    return report;
+
+  } catch (err) {
+    console.error("[backfill] Fatal error:", err);
+    throw new HttpsError("internal", err.message || "Unknown error", { stack: err.stack });
   }
-
-  console.log("Backfill complete:", JSON.stringify(report, null, 2));
-  return report;
 });

@@ -246,19 +246,34 @@ document.getElementById("backfillBtn")?.addEventListener("click", async () => {
   try {
     const res = await callBackfillWallets();
     const r   = res.data;
-    out.textContent =
+    let txt =
       `✅ Backfill complete!\n\n` +
       `Sellers scanned:  ${r.sellersScanned}\n` +
       `Orders scanned:   ${r.ordersScanned}\n` +
       `Credits issued:   ${r.creditsIssued}\n` +
       `Already credited: ${r.skipped} (skipped)\n` +
-      `Total credited:   ₦${(r.totalCredited || 0).toLocaleString()}\n\n` +
-      (r.perSeller?.length
-        ? `Per seller:\n${r.perSeller.map(s => `  • ${s.storeName || s.sellerId.slice(0,8)}: +₦${s.credited.toLocaleString()} (${s.skipped} skipped)`).join("\n")}`
-        : "No new credits issued — all paid orders were already credited.");
-    toast("Backfill complete!", "success");
+      `Errors:           ${r.errors || 0}\n` +
+      `Total credited:   ₦${(r.totalCredited || 0).toLocaleString()}\n\n`;
+
+    if (r.perSeller?.length) {
+      txt += `Per seller:\n` + r.perSeller.map(s =>
+        `  • ${s.storeName || s.sellerId.slice(0,8)}: +₦${s.credited.toLocaleString()} (${s.skipped} skipped)`
+      ).join("\n");
+    } else {
+      txt += "No new credits issued — all paid orders were already credited.";
+    }
+
+    if (r.errorDetails?.length) {
+      txt += `\n\n⚠ Errors:\n` + r.errorDetails.slice(0, 10).map(e =>
+        `  • ${e.sellerId.slice(0,8)}${e.orderId ? "/" + e.orderId.slice(0,8) : ""}: ${e.error}`
+      ).join("\n");
+    }
+
+    out.textContent = txt;
+    toast(`Backfill: ${r.creditsIssued} credits issued`, r.creditsIssued > 0 ? "success" : "info");
   } catch (e) {
-    out.textContent = "❌ Failed: " + (e.message || "Unknown error");
+    const detail = e.details?.stack || e.message || "Unknown error";
+    out.textContent = `❌ Failed: ${e.message}\n\n${detail}`;
     toast("Backfill failed: " + (e.message || "Unknown error"), "error");
   }
 
