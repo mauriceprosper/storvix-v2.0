@@ -9,6 +9,7 @@
 
 .admin-sidebar {
   background: #0F172A; color: #fff; padding: 24px 16px;
+  display: flex; flex-direction: column;
 }
 .admin-sidebar .brand {
   display: flex; align-items: center; gap: 10px;

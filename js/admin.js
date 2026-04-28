@@ -1,12 +1,15 @@
 // ============================================================
 //  STORVIX — Admin Panel (js/admin.js)
-//  Locked to: usestorvix@gmail.com + mauriceprosper1@gmail.com
+//  Self-contained Google sign-in. Locked to:
+//  - usestorvix@gmail.com
+//  - mauriceprosper1@gmail.com
 // ============================================================
 
 import {
   auth, db, onAuthStateChanged, isAdmin, ADMIN_EMAILS,
   collection, getDocs, collectionGroup, query, orderBy, limit, where,
   doc, updateDoc, serverTimestamp, callProcessPayout, callBackfillWallets,
+  googleSignIn, logOut,
 } from "./firebase-config.js";
 import { fmt, toast, fmtDate, timeAgo, statusBadge, planBadge, copyToClipboard } from "./utils.js";
 
@@ -15,18 +18,56 @@ let allSellers = [];
 let allOrders  = [];
 let allW       = [];
 
-// ── Boot ──────────────────────────────────────────────────
+// ── DOM refs ──────────────────────────────────────────────
+const loaderEl   = document.getElementById("adminLoader");
+const signInEl   = document.getElementById("adminSignIn");
+const layoutEl   = document.getElementById("adminLayout");
+const googleBtn  = document.getElementById("adminGoogleBtn");
+
+function showLoader()  { loaderEl.style.display = ""; signInEl.style.display = "none"; layoutEl.style.display = "none"; }
+function showSignIn()  { loaderEl.style.display = "none"; signInEl.style.display = "flex"; layoutEl.style.display = "none"; }
+function showAdmin()   { loaderEl.style.display = "none"; signInEl.style.display = "none"; layoutEl.style.display = ""; }
+
+// ── Auth Gate ─────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "auth.html"; return; }
+  if (!user) {
+    showSignIn();
+    return;
+  }
   if (!isAdmin(user.email)) {
-    document.getElementById("adminLoader").style.display = "none";
-    document.getElementById("accessDenied").style.display = "";
+    // Not an admin — sign them out and bounce to landing
+    toast("That account isn't an admin. Redirecting…", "error");
+    try { await logOut(); } catch {}
+    setTimeout(() => { window.location.href = "/"; }, 1200);
     return;
   }
 
-  document.getElementById("adminLoader").style.display = "none";
-  document.getElementById("adminLayout").style.display = "";
+  // Show admin email in sidebar
+  const emailEl = document.getElementById("adminCurrentEmail");
+  if (emailEl) emailEl.textContent = user.email;
+
+  showAdmin();
   loadAll();
+});
+
+// ── Google Sign-in Button ─────────────────────────────────
+googleBtn?.addEventListener("click", async () => {
+  googleBtn.disabled = true;
+  googleBtn.style.opacity = "0.7";
+  try {
+    await googleSignIn();
+    // onAuthStateChanged above will take it from here
+  } catch (e) {
+    toast(e.message || "Sign-in failed.", "error");
+    googleBtn.disabled = false;
+    googleBtn.style.opacity = "";
+  }
+});
+
+// ── Sign Out ──────────────────────────────────────────────
+document.getElementById("adminSignOutBtn")?.addEventListener("click", async () => {
+  try { await logOut(); } catch {}
+  // onAuthStateChanged will show sign-in screen
 });
 
 // ── Tabs ──────────────────────────────────────────────────
