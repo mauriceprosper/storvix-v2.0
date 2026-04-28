@@ -199,9 +199,11 @@ export async function requestWithdrawal(sellerId, amount, bank) {
   const seller = await getSeller(sellerId);
   if (!seller) throw new Error("Seller not found");
   const balance = seller.wallet?.balance || 0;
+  if (!amount || amount <= 0) throw new Error("Enter a valid amount.");
+  if (amount < 100)     throw new Error("Withdrawals must be at least ₦100.");
   if (amount > balance) throw new Error(`Insufficient balance. Available: ₦${balance.toLocaleString()}`);
-  if (amount < 5000)    throw new Error("Minimum withdrawal is ₦5,000");
-  const fee = 100;
+  // Withdrawal fee: 1% of amount, capped at ₦100, minimum ₦10
+  const fee = Math.max(10, Math.min(100, Math.round(amount * 0.01)));
   const net = amount - fee;
 
   await updateDoc(doc(db, "sellers", sellerId), {
@@ -230,3 +232,4 @@ export const callProcessPayout     = d => httpsCallable(functions, "processPayou
 export const callCreatePaymentLink = d => httpsCallable(functions, "createPaymentLink")(d);
 export const callGenerateInvoice   = d => httpsCallable(functions, "generateInvoice")(d);
 export const callSendNotification  = d => httpsCallable(functions, "sendNotification")(d);
+export const callBackfillWallets   = d => httpsCallable(functions, "backfillWallets")(d || {});

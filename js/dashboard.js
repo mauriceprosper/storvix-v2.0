@@ -852,15 +852,19 @@ function renderTransactions() {
 document.getElementById("withdrawBtn")?.addEventListener("click", async () => {
   const btn    = document.getElementById("withdrawBtn");
   const amount = parseFloat(document.getElementById("withdrawAmount").value);
-  if (!amount || amount < 5000) { toast("Minimum withdrawal is ₦5,000.", "error"); return; }
+  if (!amount || amount < 100)  { toast("Withdrawals must be at least ₦100.", "error"); return; }
   if (!seller.bank?.bankCode)   { toast("No bank account on file. Add one in Store Settings.", "error"); return; }
 
   const balance = seller.wallet?.balance || 0;
   if (amount > balance)         { toast(`Insufficient balance. Available: ${fmt(balance)}`, "error"); return; }
 
+  // Same fee logic as backend: 1% capped at ₦100, min ₦10
+  const fee = Math.max(10, Math.min(100, Math.round(amount * 0.01)));
+  const net = amount - fee;
+
   document.getElementById("confirmTitle").textContent   = "Confirm Withdrawal";
   document.getElementById("confirmMessage").textContent =
-    `Withdraw ${fmt(amount)} to ${seller.bank.bankName} (${seller.bank.accountNumber})? A ₦100 fee applies. You'll receive ${fmt(amount - 100)}.`;
+    `Withdraw ${fmt(amount)} to ${seller.bank.bankName} (${seller.bank.accountNumber})? A ${fmt(fee)} fee applies. You'll receive ${fmt(net)}.`;
   document.getElementById("confirmActionBtn").onclick = async () => {
     btnLoading(btn, true, "Withdraw");
     closeModal("confirmModal");

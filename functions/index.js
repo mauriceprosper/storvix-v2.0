@@ -584,3 +584,98 @@ exports.renewalReminderScheduler = onSchedule({
     }));
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  ADMIN: Backfill wallets from past paid orders (idempotent)
+//  Callable only by admin emails. Safe to run multiple times.
+// ═══════════════════════════════════════════════════════════════
+exports.backfillWallets = onCall(CALLABLE_OPTS, async (request) => {
+  const callerEmail = request.auth?.token?.email;
+  if (!ADMIN_EMAILS.includes(callerEmail)) {
+    throw new Error("Permission denied. Admin only.");
+  }
+
+  const sellersSnap = await db.collection("sellers").get();
+  const report = {
+    sellersScanned: 0,
+    ordersScanned: 0,
+    creditsIssued: 0,
+    skipped: 0,
+    totalCredited: 0,
+    perSeller: [],
+  };
+
+  for (const sellerDoc of sellersSnap.docs) {
+    report.sellersScanned++;
+    const sellerId  = sellerDoc.id;
+    const sellerRef = sellerDoc.ref;
+
+    const ordersSnap = await sellerRef.collection("orders")
+      .where("paymentStatus", "==", "paid").get();
+
+    let sellerCredited = 0;
+    let sellerSkipped  = 0;
+
+    for (const orderDoc of ordersSnap.docs) {
+      report.ordersScanned++;
+      const order = orderDoc.data();
+
+      // Idempotency check: has this order been credited already?
+      const existingTxn = await sellerRef.collection("transactions")
+        .where("orderId", "==", orderDoc.id)
+        .where("type", "==", "credit")
+        .limit(1)
+        .get();
+
+      if (!existingTxn.empty) {
+        sellerSkipped++;
+        report.skipped++;
+        continue;
+      }
+
+      // Calculate seller's credit (subtotal + delivery, minus Paystack fee)
+      const grossCredit  = (order.subtotal || 0) + (order.deliveryFee || 0);
+      const totalAmount  = order.total || grossCredit;
+      const paystackFee  = Math.round(totalAmount * 0.015 + 100);
+      const netCredit    = grossCredit - paystackFee;
+
+      if (netCredit <= 0) {
+        sellerSkipped++;
+        report.skipped++;
+        continue;
+      }
+
+      // Credit wallet
+      await sellerRef.update({
+        "wallet.balance":     FieldValue.increment(netCredit),
+        "wallet.totalEarned": FieldValue.increment(netCredit),
+      });
+
+      // Record transaction (so we don't double-credit)
+      await sellerRef.collection("transactions").add({
+        type:        "credit",
+        amount:      netCredit,
+        description: `Backfill: Order ${order.orderNumber || orderDoc.id}`,
+        orderId:     orderDoc.id,
+        backfill:    true,
+        createdAt:   order.createdAt || FieldValue.serverTimestamp(),
+      });
+
+      sellerCredited += netCredit;
+      report.creditsIssued++;
+      report.totalCredited += netCredit;
+    }
+
+    if (sellerCredited > 0 || sellerSkipped > 0) {
+      report.perSeller.push({
+        sellerId,
+        storeName: sellerDoc.data().storeName,
+        credited: sellerCredited,
+        skipped:  sellerSkipped,
+      });
+    }
+  }
+
+  console.log("Backfill complete:", JSON.stringify(report, null, 2));
+  return report;
+});
