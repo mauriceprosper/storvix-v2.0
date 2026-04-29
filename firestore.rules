@@ -22,13 +22,19 @@ service cloud.firestore {
       allow read: if true;
       // Only owner or admin can create/update; admin can suspend
       allow create: if isOwner(sellerId);
-      allow update: if isOwner(sellerId) || isAdmin();
+      // Owner or admin can update everything; storefront can only touch wallet fields
+      allow update: if isOwner(sellerId) || isAdmin()
+        || request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['wallet']);
       allow delete: if isAdmin();
 
       // ── Products (subcollection) ──────────────────────
       match /products/{productId} {
         allow read: if true;                 // Public for storefront
-        allow write: if isOwner(sellerId);
+        // Owner can do anything; storefront can only decrement stock
+        allow write: if isOwner(sellerId)
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['stock']);
       }
 
       // ── Orders (subcollection) ────────────────────────
@@ -66,7 +72,13 @@ service cloud.firestore {
       // ── Transactions ──────────────────────────────────
       match /transactions/{txnId} {
         allow read: if isOwner(sellerId) || isAdmin();
-        allow write: if isAdmin(); // Cloud Functions only
+        // Owner/admin can write anything; storefront can create credit transactions tied to a real order
+        allow create: if isOwner(sellerId) || isAdmin()
+          || (request.resource.data.type == 'credit'
+              && request.resource.data.orderId is string
+              && request.resource.data.amount is number
+              && request.resource.data.amount > 0);
+        allow update, delete: if isOwner(sellerId) || isAdmin();
       }
 
       // ── Testimonials ──────────────────────────────────

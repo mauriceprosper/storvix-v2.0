@@ -6,6 +6,7 @@
 import {
   db, getSellerBySlug, getProducts, getTestimonials,
   collection, addDoc, serverTimestamp, doc, updateDoc, getDoc,
+  query, where, limit, getDocs, increment,
 } from "./firebase-config.js";
 import {
   fmt, toast, getParam, applyAccent, storeUrl, normalisePhone,
@@ -640,14 +641,61 @@ async function initiatePayment() {
       ],
     },
     callback: function (response) {
-      // Payment completed — webhook will handle wallet credit + stock decrement
-      // Run async work in background; don't await
-      updateDoc(doc(db, "sellers", seller.id, "orders", orderId), {
-        paymentStatus: "paid", status: "confirmed",
-        paymentRef: response.reference, updatedAt: serverTimestamp(),
-      }).catch(e => console.warn("Order update failed (webhook will retry):", e));
+      // Optimistic client-side update — webhook will be source of truth when deployed
+      // Run all updates in background; don't block UI
+      (async () => {
+        try {
+          // 1. Mark order as paid
+          await updateDoc(doc(db, "sellers", seller.id, "orders", orderId), {
+            paymentStatus: "paid", status: "confirmed",
+            paymentRef: response.reference, updatedAt: serverTimestamp(),
+          });
 
-      // Clear cart
+          // 2. Calculate seller's net credit (subtotal + delivery, minus Paystack fee)
+          const grossCredit  = totals.subtotal + totals.delivery;
+          const paystackFee  = Math.round(totals.total * 0.015 + 100);
+          const netCredit    = Math.max(0, grossCredit - paystackFee);
+
+          // 3. Idempotency: only credit if not already credited
+          const txnQuery = query(
+            collection(db, "sellers", seller.id, "transactions"),
+            where("orderId", "==", orderId),
+            where("type", "==", "credit"),
+            limit(1)
+          );
+          const existing = await getDocs(txnQuery);
+
+          if (existing.empty && netCredit > 0) {
+            // Credit wallet
+            await updateDoc(doc(db, "sellers", seller.id), {
+              "wallet.balance":     increment(netCredit),
+              "wallet.totalEarned": increment(netCredit),
+            });
+
+            // Record transaction
+            await addDoc(collection(db, "sellers", seller.id, "transactions"), {
+              type:        "credit",
+              amount:      netCredit,
+              description: `Order ${orderNumber}`,
+              orderId:     orderId,
+              paymentRef:  response.reference,
+              createdAt:   serverTimestamp(),
+            });
+          }
+
+          // 4. Decrement product stock
+          for (const item of cart) {
+            if (!item.id) continue;
+            await updateDoc(doc(db, "sellers", seller.id, "products", item.id), {
+              stock: increment(-(item.qty || 1)),
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.warn("Post-payment background tasks failed (webhook will retry):", err);
+        }
+      })();
+
+      // Clear cart immediately for instant UX
       cart = [];
       renderCart();
       document.getElementById("checkoutModal").classList.remove("open");
