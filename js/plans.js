@@ -12,7 +12,7 @@
 export const TEST_MODE = true;
 
 const PAYSTACK_KEYS = {
-  test: "pk_test_3eb7b7068e4cd9013af8b40db9e10f3537ef0d50",  // Replace with your actual test pk
+  test: "pk_test_3b8fa7936778cc23dbda491c5c5086d5bff41a56",  // Replace with your actual test pk
   live: "pk_live_51a8f2a4d502029c54e9141167aff10daf1e384b",
 };
 
