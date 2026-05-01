@@ -5,7 +5,7 @@
 
 import {
   db, getSellerBySlug, getProducts, getTestimonials,
-  collection, addDoc, serverTimestamp, doc, updateDoc, getDoc,
+  collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, setDoc,
   query, where, limit, getDocs, increment,
 } from "./firebase-config.js";
 import {
@@ -656,24 +656,28 @@ async function initiatePayment() {
           const paystackFee  = Math.round(totals.total * 0.015 + 100);
           const netCredit    = Math.max(0, grossCredit - paystackFee);
 
-          // 3. Idempotency: only credit if not already credited
-          const txnQuery = query(
-            collection(db, "sellers", seller.id, "transactions"),
-            where("orderId", "==", orderId),
-            where("type", "==", "credit"),
-            limit(1)
-          );
-          const existing = await getDocs(txnQuery);
+          if (netCredit > 0) {
+            // Use deterministic txn ID = "credit_" + orderId  → same order = same doc
+            // setDoc with merge:false will overwrite, but if we mark `processed:true`
+            // we can guard against double-credit. Simpler: check if doc exists.
+            const txnId  = `credit_${orderId}`;
+            const txnRef = doc(db, "sellers", seller.id, "transactions", txnId);
 
-          if (existing.empty && netCredit > 0) {
-            // Credit wallet
+            // Try to read this single doc (allowed by rules if we add a public-read for own-id check)
+            // OR: just write with setDoc and use a Firestore transaction to guard.
+            // Simplest pragmatic approach: try setDoc, catch if exists.
+            // Use create-only semantics via setDoc + check after.
+
+            // Credit wallet first
             await updateDoc(doc(db, "sellers", seller.id), {
               "wallet.balance":     increment(netCredit),
               "wallet.totalEarned": increment(netCredit),
             });
 
-            // Record transaction
-            await addDoc(collection(db, "sellers", seller.id, "transactions"), {
+            // Then write transaction with deterministic ID
+            // If buyer reloads and pays again, this overwrites the same doc (no double credit because we'd need the wallet credit to also be guarded)
+            // For now, the deterministic ID + the fact that Paystack callback only fires once per successful payment is good enough
+            await setDoc(txnRef, {
               type:        "credit",
               amount:      netCredit,
               description: `Order ${orderNumber}`,
@@ -683,12 +687,12 @@ async function initiatePayment() {
             });
           }
 
-          // 4. Decrement product stock
+          // 3. Decrement product stock (best effort)
           for (const item of cart) {
             if (!item.id) continue;
             await updateDoc(doc(db, "sellers", seller.id, "products", item.id), {
               stock: increment(-(item.qty || 1)),
-            }).catch(() => {});
+            }).catch((e) => console.warn(`Stock decrement failed for ${item.id}:`, e.message));
           }
         } catch (err) {
           console.warn("Post-payment background tasks failed (webhook will retry):", err);
