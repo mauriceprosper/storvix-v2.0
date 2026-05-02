@@ -25,11 +25,8 @@ service cloud.firestore {
       // Owner/admin can update everything; anyone else can only touch wallet-related fields
       // (storefront credits wallet on successful payment)
       allow update: if isOwner(sellerId) || isAdmin()
-        || (
-             // Match wallet field as a map OR via dotted paths
-             let allowedKeys = ['wallet', 'wallet.balance', 'wallet.totalEarned'];
-             request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys)
-           );
+        || request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['wallet', 'wallet.balance', 'wallet.totalEarned']);
       allow delete: if isAdmin();
 
       // ── Products (subcollection) ──────────────────────
