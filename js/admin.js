@@ -8,7 +8,8 @@
 import {
   auth, db, onAuthStateChanged, isAdmin, ADMIN_EMAILS,
   collection, getDocs, collectionGroup, query, orderBy, limit, where,
-  doc, updateDoc, serverTimestamp, callProcessPayout, callBackfillWallets,
+  doc, updateDoc, serverTimestamp, increment,
+  callProcessPayout, callBackfillWallets,
   googleSignIn, logOut,
 } from "./firebase-config.js";
 import { fmt, toast, fmtDate, timeAgo, statusBadge, planBadge, copyToClipboard } from "./utils.js";
@@ -45,6 +46,7 @@ onAuthStateChanged(auth, async (user) => {
   // Show admin email in sidebar
   const emailEl = document.getElementById("adminCurrentEmail");
   if (emailEl) emailEl.textContent = user.email;
+  window._adminEmail = user.email;
 
   showAdmin();
   loadAll();
@@ -105,10 +107,18 @@ async function loadOrders() {
 
 async function loadWithdrawals() {
   try {
-    const snap = await getDocs(query(collection(db, "withdrawals"), where("status", "==", "pending")));
+    const snap = await getDocs(query(collection(db, "withdrawals"), orderBy("requestedAt", "desc"), limit(100)));
     allW = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {
-    allW = [];
+  } catch (err) {
+    console.warn("Withdrawals load fallback (orderBy failed, retrying without):", err.message);
+    try {
+      const snap = await getDocs(collection(db, "withdrawals"));
+      allW = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort client-side
+      allW.sort((a, b) => (b.requestedAt?.toMillis?.() || 0) - (a.requestedAt?.toMillis?.() || 0));
+    } catch {
+      allW = [];
+    }
   }
   renderWithdrawals();
 }
@@ -197,35 +207,146 @@ function renderOrders() {
 // ── Withdrawals ───────────────────────────────────────────
 function renderWithdrawals() {
   const body = document.getElementById("adminWithdrawalsBody");
-  if (!allW.length) { body.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:48px;color:var(--text-muted)">No pending withdrawals.</td></tr>`; return; }
 
-  body.innerHTML = allW.map(w => {
+  // Top-line counts
+  const counts = {
+    pending:   allW.filter(w => w.status === "pending").length,
+    paid:      allW.filter(w => w.status === "paid").length,
+    rejected:  allW.filter(w => w.status === "rejected").length,
+    pendingAmount: allW.filter(w => w.status === "pending").reduce((s, w) => s + (w.amount || 0), 0),
+  };
+
+  const summaryEl = document.getElementById("withdrawalsSummary");
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:#F59E0B">${counts.pending}</div><div class="stat-sub">${fmt(counts.pendingAmount)} to pay out</div></div>
+      <div class="stat-card"><div class="stat-label">Paid</div><div class="stat-value" style="color:#10B981">${counts.paid}</div><div class="stat-sub">All time</div></div>
+      <div class="stat-card"><div class="stat-label">Rejected</div><div class="stat-value" style="color:#EF4444">${counts.rejected}</div><div class="stat-sub">All time</div></div>`;
+  }
+
+  if (!allW.length) {
+    body.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:48px;color:var(--text-muted)">No withdrawals yet.</td></tr>`;
+    return;
+  }
+
+  // Filter UI updates allW visually
+  const filter = document.getElementById("withdrawFilter")?.value || "all";
+  const visible = filter === "all" ? allW : allW.filter(w => w.status === filter);
+
+  body.innerHTML = visible.map(w => {
     const seller = allSellers.find(s => s.id === w.sellerId);
+    const fee = w.amount - (w.netAmount || w.amount);
+
+    let statusBadge, actions;
+    if (w.status === "pending") {
+      statusBadge = '<span class="badge badge-orange">Pending</span>';
+      actions = `
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="markPaid('${w.id}')">Mark Paid</button>
+          <button class="btn btn-sm btn-danger" onclick="rejectWithdrawal('${w.id}')">Reject</button>
+        </div>`;
+    } else if (w.status === "paid") {
+      statusBadge = '<span class="badge badge-green">Paid</span>';
+      actions = w.paidAt ? `<span style="font-size:.75rem;color:var(--text-muted)">${timeAgo(w.paidAt)}</span>` : "—";
+    } else if (w.status === "rejected") {
+      statusBadge = '<span class="badge badge-red">Rejected</span>';
+      actions = `<button class="btn btn-sm btn-secondary" onclick="restoreWithdrawal('${w.id}')">Restore</button>`;
+    } else {
+      statusBadge = `<span class="badge badge-gray">${w.status}</span>`;
+      actions = "—";
+    }
+
     return `
       <tr>
-        <td>${seller?.storeName || w.sellerId.slice(0,8)}</td>
-        <td style="font-weight:700">${fmt(w.amount)}</td>
-        <td style="font-size:.875rem">
-          <div>${w.bank?.bankName || "—"}</div>
-          <div style="color:var(--text-muted)">${w.bank?.accountNumber} · ${w.bank?.accountName}</div>
-        </td>
-        <td><span class="badge badge-orange">Pending</span></td>
-        <td style="font-size:.875rem;color:var(--text-muted)">${timeAgo(w.requestedAt)}</td>
         <td>
-          <button class="btn btn-sm btn-primary" onclick="processPayout('${w.id}')">Process</button>
+          <div style="font-weight:600">${seller?.storeName || w.sellerId.slice(0,8)}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${seller?.email || ""}</div>
         </td>
+        <td>
+          <div style="font-weight:700">${fmt(w.amount)}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">Fee ${fmt(fee)} · Net ${fmt(w.netAmount || w.amount)}</div>
+        </td>
+        <td style="font-size:.875rem">
+          <div style="font-weight:600">${w.bank?.bankName || "—"}</div>
+          <div style="color:var(--text-muted);font-family:monospace">${w.bank?.accountNumber || ""}</div>
+          <div style="color:var(--text-muted)">${w.bank?.accountName || ""}</div>
+        </td>
+        <td>${statusBadge}</td>
+        <td style="font-size:.875rem;color:var(--text-muted)">${timeAgo(w.requestedAt)}</td>
+        <td>${actions}</td>
       </tr>`;
   }).join("");
 }
 
-window.processPayout = async (id) => {
-  if (!confirm("Process this payout via Paystack?")) return;
+window.markPaid = async (id) => {
+  const w = allW.find(x => x.id === id);
+  if (!w) return;
+  const ref = prompt(`Mark withdrawal of ${fmt(w.amount)} as paid?\n\nEnter the bank transfer reference (or leave blank):`);
+  if (ref === null) return; // user cancelled
+
   try {
-    await callProcessPayout({ withdrawalId: id });
-    toast("Payout processed!", "success");
+    await updateDoc(doc(db, "withdrawals", id), {
+      status:      "paid",
+      paidAt:      serverTimestamp(),
+      paidBy:      window._adminEmail || null,
+      bankRef:     ref || null,
+      method:      "manual",
+    });
+    toast("Marked as paid.", "success");
     loadWithdrawals();
   } catch (e) {
-    toast(e.message || "Failed to process payout.", "error");
+    toast("Failed: " + e.message, "error");
+  }
+};
+
+window.rejectWithdrawal = async (id) => {
+  const w = allW.find(x => x.id === id);
+  if (!w) return;
+  const reason = prompt(`Reject this withdrawal?\n\nReason (will refund ${fmt(w.amount)} to wallet):`);
+  if (reason === null) return;
+
+  try {
+    // Refund to wallet
+    await updateDoc(doc(db, "sellers", w.sellerId), {
+      "wallet.balance":        increment(w.amount),
+      "wallet.totalWithdrawn": increment(-w.amount),
+    });
+    // Mark rejected
+    await updateDoc(doc(db, "withdrawals", id), {
+      status:        "rejected",
+      rejectedAt:    serverTimestamp(),
+      rejectedBy:    window._adminEmail || null,
+      rejectReason:  reason || "No reason given",
+    });
+    toast("Rejected and refunded.", "success");
+    loadWithdrawals();
+    loadSellers(); // wallet balances changed
+  } catch (e) {
+    toast("Failed: " + e.message, "error");
+  }
+};
+
+window.restoreWithdrawal = async (id) => {
+  if (!confirm("Restore this withdrawal back to pending?")) return;
+  const w = allW.find(x => x.id === id);
+  if (!w) return;
+
+  try {
+    // Re-deduct from wallet
+    await updateDoc(doc(db, "sellers", w.sellerId), {
+      "wallet.balance":        increment(-w.amount),
+      "wallet.totalWithdrawn": increment(w.amount),
+    });
+    await updateDoc(doc(db, "withdrawals", id), {
+      status:        "pending",
+      rejectedAt:    null,
+      rejectReason:  null,
+    });
+    toast("Restored to pending.", "success");
+    loadWithdrawals();
+    loadSellers();
+  } catch (e) {
+    toast("Failed: " + e.message, "error");
   }
 };
 

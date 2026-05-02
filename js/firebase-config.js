@@ -15,6 +15,7 @@ import {
   getFirestore, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   collection, collectionGroup, query, where, orderBy, limit, onSnapshot,
   serverTimestamp, increment, Timestamp, startAfter, limitToLast, getCountFromServer,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject,
@@ -43,7 +44,7 @@ const functions = getFunctions(app, "europe-west1");
 // ── Exports ───────────────────────────────────────────────────
 export {
   app, auth, db, storage, functions,
-  onAuthStateChanged, serverTimestamp, Timestamp, increment,
+  onAuthStateChanged, serverTimestamp, Timestamp, increment, writeBatch,
   doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   collection, collectionGroup, query, where, orderBy, limit,
   onSnapshot, startAfter, limitToLast, getCountFromServer,
@@ -59,7 +60,7 @@ export const logOut         = ()     => signOut(auth);
 export const setDisplayName = (u, n) => updateProfile(u, { displayName: n });
 
 export const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
-export const isAdmin = (email) => ADMIN_EMAILS.includes(email);
+export const isAdmin = (email) => !!email && ADMIN_EMAILS.includes(email.toLowerCase().trim());
 
 // ── Seller CRUD ───────────────────────────────────────────────
 export async function getSeller(uid) {

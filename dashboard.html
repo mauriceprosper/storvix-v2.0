@@ -662,39 +662,51 @@
 <div class="modal" id="discountModal">
   <div class="modal-box modal-sm">
     <div class="modal-header">
-      <h3 class="modal-title">Create Discount</h3>
+      <h3 class="modal-title">Create Discount / Coupon</h3>
       <div class="modal-close" onclick="closeModal('discountModal')">×</div>
     </div>
     <form id="discountForm">
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="form-group">
-          <label class="form-label">Type</label>
-          <select class="form-select" id="dType">
-            <option value="percent">Percentage off (%)</option>
-            <option value="flat">Flat amount off (₦)</option>
-          </select>
+          <label class="form-label">Coupon code</label>
+          <input class="form-input" type="text" id="dCode" placeholder="SAVE10 (e.g. NEWYEAR, FIRST100)" style="text-transform:uppercase" required>
+          <span class="form-hint">Customers will type this at checkout.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Type</label>
+            <select class="form-select" id="dType">
+              <option value="percentage">Percentage (%)</option>
+              <option value="fixed">Flat amount (₦)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Value</label>
+            <input class="form-input" type="number" id="dValue" min="1" placeholder="10" required>
+            <span class="form-hint" id="dValueHint">e.g. 10 = 10% off</span>
+          </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Value</label>
-          <input class="form-input" type="number" id="dValue" min="1">
+          <label class="form-label">Minimum order amount (optional)</label>
+          <input class="form-input" type="number" id="dMinOrder" min="0" placeholder="0 (no minimum)">
+          <span class="form-hint">Coupon only works on orders above this amount.</span>
         </div>
-        <div class="form-group" id="dCodeGroup" style="display:none">
-          <label class="form-label">Coupon code</label>
-          <input class="form-input" type="text" id="dCode" placeholder="SAVE10" style="text-transform:uppercase">
-          <span class="form-hint">Leave blank for automatic discount.</span>
-        </div>
-        <div class="form-group" id="dExpiryGroup" style="display:none">
-          <label class="form-label">Expiry date</label>
-          <input class="form-input" type="date" id="dExpiry">
-        </div>
-        <div class="form-group" id="dLimitGroup" style="display:none">
-          <label class="form-label">Usage limit</label>
-          <input class="form-input" type="number" id="dLimit" min="1" placeholder="Unlimited">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Expires</label>
+            <input class="form-input" type="date" id="dExpiry">
+            <span class="form-hint">Optional</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max uses</label>
+            <input class="form-input" type="number" id="dLimit" min="1" placeholder="Unlimited">
+            <span class="form-hint">Optional</span>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('discountModal')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary">Save Coupon</button>
       </div>
     </form>
   </div>

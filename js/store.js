@@ -6,7 +6,7 @@
 import {
   db, getSellerBySlug, getProducts, getTestimonials,
   collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, setDoc,
-  query, where, limit, getDocs, increment,
+  query, where, limit, getDocs, increment, writeBatch,
 } from "./firebase-config.js";
 import {
   fmt, toast, getParam, applyAccent, storeUrl, normalisePhone,
@@ -36,6 +36,7 @@ let selectedColor    = null;
 let checkoutStep     = 1;
 let selectedCourier  = null;
 let cartSessionId    = null;
+let appliedDiscount  = null;  // { code, type: "percentage"|"fixed", value, doc }
 
 // ── Boot ───────────────────────────────────────────────────────
 async function init() {
@@ -564,7 +565,26 @@ window.selectCourier = (el, fee, name) => {
 function renderOrderSummary() {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const delivery = selectedCourier?.fee || 0;
-  const totals   = calculateTotal(subtotal, delivery);
+
+  // Calculate discount
+  let discount = 0;
+  if (appliedDiscount) {
+    if (appliedDiscount.type === "percentage") {
+      discount = Math.round(subtotal * (appliedDiscount.value / 100));
+    } else {
+      discount = Math.min(subtotal, appliedDiscount.value);
+    }
+  }
+
+  const discountedSubtotal = Math.max(0, subtotal - discount);
+  const totals = calculateTotal(discountedSubtotal, delivery);
+  // Override subtotal in totals to keep the display consistent
+  totals.subtotal = discountedSubtotal;
+  totals.originalSubtotal = subtotal;
+  totals.discount = discount;
+
+  // Stash for use in initiatePayment
+  window._lastTotals = totals;
 
   document.getElementById("orderSummary").innerHTML = `
     <h4 style="margin-bottom:12px">Order Summary</h4>
@@ -577,15 +597,114 @@ function renderOrderSummary() {
         </div>
         <div style="font-weight:700">${fmt(i.price * i.qty)}</div>
       </div>`).join("")}
-    <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px">
-      <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${fmt(totals.subtotal)}</span></div>
+
+    <!-- Coupon Section -->
+    <div style="margin-top:14px;padding:12px;background:rgba(102,71,255,0.04);border:1px dashed rgba(102,71,255,0.3);border-radius:10px">
+      ${appliedDiscount ? `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div>
+            <div style="font-weight:700;color:var(--accent);font-size:.875rem">✓ ${appliedDiscount.code}</div>
+            <div style="font-size:.75rem;color:var(--text-muted)">
+              ${appliedDiscount.type === "percentage" ? `${appliedDiscount.value}% off` : `${fmt(appliedDiscount.value)} off`}
+            </div>
+          </div>
+          <button onclick="removeCoupon()" style="border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:.8125rem;text-decoration:underline">Remove</button>
+        </div>
+      ` : `
+        <div style="display:flex;gap:8px">
+          <input type="text" id="couponInput" placeholder="Have a coupon code?"
+                 style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.875rem;text-transform:uppercase"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();applyCoupon();}">
+          <button onclick="applyCoupon()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.875rem">Apply</button>
+        </div>
+        <div id="couponMsg" style="font-size:.75rem;margin-top:6px;color:var(--text-muted)"></div>
+      `}
+    </div>
+
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:4px">
+      ${discount > 0 ? `
+        <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span style="text-decoration:line-through;color:var(--text-muted)">${fmt(subtotal)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--accent);font-weight:600">
+          <span>Discount (${appliedDiscount.code})</span><span>−${fmt(discount)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between"><span>Subtotal after discount</span><span>${fmt(discountedSubtotal)}</span></div>
+      ` : `
+        <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${fmt(totals.subtotal)}</span></div>
+      `}
       ${delivery ? `<div style="display:flex;justify-content:space-between"><span>Delivery (${selectedCourier?.name})</span><span>${fmt(delivery)}</span></div>` : ""}
-      ${totals.fee ? `<div style="display:flex;justify-content:space-between"><span>VAT + Paystack</span><span>${fmt(totals.fee)}</span></div>` : ""}
+      ${totals.fee ? `<div style="display:flex;justify-content:space-between"><span>Service Fee</span><span>${fmt(totals.fee)}</span></div>` : ""}
       <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.125rem;border-top:2px solid var(--text);margin-top:8px;padding-top:8px">
         <span>Total</span><span>${fmt(totals.total)}</span>
       </div>
     </div>`;
 }
+
+// ── Coupon Apply / Remove ──────────────────────────────────────
+window.applyCoupon = async () => {
+  const input = document.getElementById("couponInput");
+  const msg   = document.getElementById("couponMsg");
+  const code  = (input?.value || "").trim().toUpperCase();
+  if (!code) { msg.textContent = "Enter a coupon code."; msg.style.color = "var(--danger,#dc2626)"; return; }
+
+  msg.textContent = "Checking…";
+  msg.style.color = "var(--text-muted)";
+
+  try {
+    // Find discount in seller's discounts collection
+    const q = query(
+      collection(db, "sellers", seller.id, "discounts"),
+      where("code", "==", code),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      msg.textContent = "Invalid coupon code.";
+      msg.style.color = "#dc2626";
+      return;
+    }
+
+    const d = snap.docs[0].data();
+    const docId = snap.docs[0].id;
+
+    // Validations
+    if (d.active === false) {
+      msg.textContent = "This coupon is no longer active.";
+      msg.style.color = "#dc2626"; return;
+    }
+    if (d.expiresAt && d.expiresAt.toDate && d.expiresAt.toDate() < new Date()) {
+      msg.textContent = "This coupon has expired.";
+      msg.style.color = "#dc2626"; return;
+    }
+    if (d.maxUses && d.usageCount >= d.maxUses) {
+      msg.textContent = "This coupon has reached its usage limit.";
+      msg.style.color = "#dc2626"; return;
+    }
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    if (d.minOrderAmount && subtotal < d.minOrderAmount) {
+      msg.textContent = `Minimum order ${fmt(d.minOrderAmount)} required.`;
+      msg.style.color = "#dc2626"; return;
+    }
+
+    appliedDiscount = {
+      code:   d.code,
+      type:   d.type || "percentage",  // "percentage" or "fixed"
+      value:  d.value,
+      docId:  docId,
+    };
+    toast(`Coupon "${code}" applied!`, "success");
+    renderOrderSummary();
+  } catch (err) {
+    console.error("Coupon apply failed:", err);
+    msg.textContent = "Could not apply coupon. Try again.";
+    msg.style.color = "#dc2626";
+  }
+};
+
+window.removeCoupon = () => {
+  appliedDiscount = null;
+  renderOrderSummary();
+};
 
 // ── Paystack Payment ───────────────────────────────────────────
 async function initiatePayment() {
@@ -597,11 +716,22 @@ async function initiatePayment() {
   const city   = document.getElementById("buyerCity").value.trim();
   const state  = document.getElementById("buyerState").value;
 
-  const subtotal    = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const deliveryFee = selectedCourier?.fee || 0;
-  const totals      = calculateTotal(subtotal, deliveryFee);
-  const orderNumber = generateOrderNumber();
-  const payRef      = `STX_${Date.now()}_${shortRef(4)}`;
+  const rawSubtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const deliveryFee  = selectedCourier?.fee || 0;
+
+  // Apply discount if any
+  let discountAmount = 0;
+  if (appliedDiscount) {
+    if (appliedDiscount.type === "percentage") {
+      discountAmount = Math.round(rawSubtotal * (appliedDiscount.value / 100));
+    } else {
+      discountAmount = Math.min(rawSubtotal, appliedDiscount.value);
+    }
+  }
+  const subtotal     = Math.max(0, rawSubtotal - discountAmount);
+  const totals       = calculateTotal(subtotal, deliveryFee);
+  const orderNumber  = generateOrderNumber();
+  const payRef       = `STX_${Date.now()}_${shortRef(4)}`;
 
   // Pre-save order as pending
   const orderData = {
@@ -609,7 +739,15 @@ async function initiatePayment() {
     buyer: { name, phone, email },
     address: { street, city, state },
     items: cart.map(i => ({ productId: i.id, name: i.name, price: i.price, qty: i.qty, variant: i.variant || "" })),
-    subtotal, deliveryFee, storvixFee: totals.fee, total: totals.total,
+    rawSubtotal,                                  // before discount
+    discount: appliedDiscount ? {
+      code:   appliedDiscount.code,
+      type:   appliedDiscount.type,
+      value:  appliedDiscount.value,
+      amount: discountAmount,
+    } : null,
+    subtotal,                                     // after discount
+    deliveryFee, storvixFee: totals.fee, total: totals.total,
     deliveryCourier: selectedCourier?.name || "",
     status: "pending", paymentRef: payRef, paymentStatus: "pending",
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
@@ -641,6 +779,9 @@ async function initiatePayment() {
       ],
     },
     callback: function (response) {
+      // Snapshot cart BEFORE the async block, so clearing it later doesn't affect us
+      const cartSnapshot = [...cart];
+
       // Run all post-payment updates in background; don't block UI
       (async () => {
         try {
@@ -652,7 +793,6 @@ async function initiatePayment() {
 
           // Atomic: mark order paid + credit wallet + record transaction
           // Using a write batch ensures all succeed or all fail together
-          const { writeBatch } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
           const batch = writeBatch(db);
 
           // 1. Mark order as paid
@@ -680,15 +820,28 @@ async function initiatePayment() {
             createdAt:   serverTimestamp(),
           });
 
+          // 4. Increment discount usage if a coupon was applied
+          if (appliedDiscount?.docId) {
+            batch.update(doc(db, "sellers", seller.id, "discounts", appliedDiscount.docId), {
+              usageCount: increment(1),
+              lastUsedAt: serverTimestamp(),
+            });
+          }
+
           await batch.commit();
           console.log(`[Storvix] Credited ₦${credit.toLocaleString()} to wallet for order ${orderNumber}`);
 
-          // 4. Decrement product stock (best effort, non-batch since it's many docs)
-          for (const item of cart) {
+          // 4. Decrement product stock — uses cartSnapshot, not cart (which is cleared)
+          for (const item of cartSnapshot) {
             if (!item.id) continue;
-            await updateDoc(doc(db, "sellers", seller.id, "products", item.id), {
-              stock: increment(-(item.qty || 1)),
-            }).catch((e) => console.warn(`Stock decrement failed for ${item.id}:`, e.message));
+            try {
+              await updateDoc(doc(db, "sellers", seller.id, "products", item.id), {
+                stock: increment(-(item.qty || 1)),
+              });
+              console.log(`[Storvix] Stock decremented for ${item.name} (-${item.qty || 1})`);
+            } catch (e) {
+              console.warn(`Stock decrement failed for ${item.id}:`, e.message);
+            }
           }
         } catch (err) {
           console.error("Post-payment update failed:", err);
@@ -701,7 +854,8 @@ async function initiatePayment() {
       document.getElementById("checkoutModal").classList.remove("open");
       document.body.style.overflow = "";
 
-      // Success message
+      // Success message with track-order link (since WhatsApp may not fire)
+      const trackUrl = `${window.location.origin}/track.html?ref=${orderNumber}`;
       document.getElementById("storeStatePage").style.display = "";
       document.getElementById("storeStatePage").innerHTML = `
         <div class="store-state-page">
@@ -710,9 +864,21 @@ async function initiatePayment() {
             <h2 class="store-state-title">Order Confirmed!</h2>
             <p class="store-state-text">
               Thank you, ${name}! Your order <strong>${orderNumber}</strong> has been placed.
-              You'll receive a WhatsApp confirmation shortly.
             </p>
-            <button class="btn btn-primary" style="margin-top:24px" onclick="location.reload()">Continue Shopping</button>
+
+            <div style="margin:24px 0;padding:18px;background:rgba(102,71,255,0.06);border:1px solid rgba(102,71,255,0.2);border-radius:12px;text-align:left">
+              <div style="font-size:.8rem;color:var(--text-muted);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Track your order</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" readonly value="${trackUrl}" id="trackLinkInput" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.875rem;background:#fff;font-family:monospace">
+                <button onclick="navigator.clipboard.writeText(document.getElementById('trackLinkInput').value).then(()=>this.textContent='✓')" style="padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.875rem">Copy</button>
+              </div>
+              <p style="font-size:.75rem;color:var(--text-muted);margin-top:10px">Save this link to check your order status anytime.</p>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+              <a href="${trackUrl}" class="btn btn-primary">Track Order →</a>
+              <button class="btn btn-secondary" onclick="location.reload()">Continue Shopping</button>
+            </div>
           </div>
         </div>`;
     },

@@ -5,69 +5,272 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pay — Storvix</title>
   <link rel="icon" href="assets/logo.png" type="image/png">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/global.css">
-  <link rel="stylesheet" href="css/store.css">
   <script src="https://js.paystack.co/v1/inline.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #FAFAFF;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .pay-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .pay-card {
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 12px 40px -16px rgba(10,14,26,0.12);
+    }
+    .pay-brand {
+      text-align: center;
+      padding-bottom: 24px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .pay-brand img {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      object-fit: cover;
+      margin-bottom: 14px;
+      border: 1px solid #F3F4F6;
+    }
+    .pay-store {
+      font-size: 0.875rem;
+      color: #6B7280;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .pay-store strong { color: #111827; font-weight: 700; }
+    .pay-desc {
+      font-size: 1.0625rem;
+      font-weight: 500;
+      color: #111827;
+      margin: 8px 0 14px;
+      line-height: 1.4;
+    }
+    .pay-amount-wrap {
+      padding: 18px;
+      background: linear-gradient(135deg, #6647FF 0%, #4F2FE8 100%);
+      border-radius: 14px;
+      color: white;
+      margin-top: 8px;
+    }
+    .pay-amount-label {
+      font-size: 0.75rem;
+      opacity: 0.85;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .pay-amount {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .pay-amount-sub {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin-top: 6px;
+    }
+
+    .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .form-row label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #374151;
+    }
+    .form-row label .hint { color: #9CA3AF; font-weight: 400; }
+    .form-row input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #D1D5DB;
+      border-radius: 10px;
+      font-size: 0.9375rem;
+      font-family: inherit;
+      transition: all 0.15s;
+      box-sizing: border-box;
+    }
+    .form-row input:focus {
+      outline: none;
+      border-color: #6647FF;
+      box-shadow: 0 0 0 3px rgba(102,71,255,0.1);
+    }
+
+    .pay-btn {
+      width: 100%;
+      padding: 14px;
+      background: #111827;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: all 0.15s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .pay-btn:hover { background: #1F2937; transform: translateY(-1px); box-shadow: 0 8px 20px -8px rgba(17,24,39,0.4); }
+    .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .trust-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #F3F4F6;
+    }
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #6B7280;
+      font-weight: 500;
+    }
+    .trust-item svg { width: 14px; height: 14px; }
+
+    .pay-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: #9CA3AF;
+    }
+    .pay-footer a { color: #6B7280; text-decoration: none; }
+
+    /* States */
+    .state-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+    }
+    .state-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .state-text  { color: #6B7280; line-height: 1.55; }
+
+    /* Loader */
+    .pay-loader {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .spinner-pay {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #E5E7EB;
+      border-top-color: #6647FF;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 480px) {
+      .pay-card { padding: 24px 20px; border-radius: 16px; }
+      .pay-amount { font-size: 1.875rem; }
+    }
+  </style>
 </head>
 <body>
 <div id="storvix-toast"></div>
-<div class="page-loader" id="pageLoader"><div class="spinner"></div></div>
 
-<div class="pay-page" id="payPage" style="display:none">
-  <div class="pay-box" id="payBox">
-    <div style="text-align:center;margin-bottom:24px">
-      <img id="paySellerLogo" src="" alt="" style="width:64px;height:64px;border-radius:14px;margin-bottom:12px;display:none">
-      <div class="pay-seller-name" id="paySellerName">—</div>
-      <div class="pay-description" id="payDescription">—</div>
-      <div class="pay-amount" id="payAmount">₦0</div>
+<!-- Loader -->
+<div class="pay-loader" id="pageLoader"><div class="spinner-pay"></div></div>
+
+<!-- Payment Card -->
+<div class="pay-shell" id="payPage" style="display:none">
+  <div class="pay-card">
+    <div class="pay-brand">
+      <img id="paySellerLogo" src="assets/logo.png" alt="">
+      <div class="pay-store">Pay <strong id="paySellerName">…</strong></div>
+      <div class="pay-desc" id="payDescription">…</div>
+      <div class="pay-amount-wrap">
+        <div class="pay-amount-label">Amount due</div>
+        <div class="pay-amount" id="payAmount">₦0</div>
+        <div class="pay-amount-sub" id="payAmountSub">+ ₦100 service fee</div>
+      </div>
     </div>
 
-    <form id="payForm" style="display:flex;flex-direction:column;gap:14px">
-      <div class="form-group">
-        <label class="form-label">Your name</label>
-        <input class="form-input" type="text" id="payerName" required>
+    <form id="payForm">
+      <div class="form-row">
+        <label>Your name</label>
+        <input type="text" id="payerName" placeholder="Adekunle Ade" autocomplete="name" required>
       </div>
-      <div class="form-group">
-        <label class="form-label">WhatsApp number</label>
-        <input class="form-input" type="tel" id="payerPhone" placeholder="+234…" required>
+      <div class="form-row">
+        <label>WhatsApp number</label>
+        <input type="tel" id="payerPhone" placeholder="0801 234 5678" autocomplete="tel" required>
       </div>
-      <div class="form-group">
-        <label class="form-label">Email <span style="color:var(--text-faint);font-weight:400">(optional)</span></label>
-        <input class="form-input" type="email" id="payerEmail">
+      <div class="form-row">
+        <label>Email <span class="hint">(optional, for receipt)</span></label>
+        <input type="email" id="payerEmail" placeholder="you@example.com" autocomplete="email">
       </div>
-      <button type="submit" class="btn-checkout" id="payNowBtn">Pay Now</button>
+      <button type="submit" class="pay-btn" id="payNowBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+        Pay <span id="payBtnAmount">₦0</span>
+      </button>
     </form>
 
-    <div class="alert alert-info" style="margin-top:16px">🔒 Secured by Paystack</div>
+    <div class="trust-row">
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        Secured by Paystack
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Card · Transfer · USSD
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- States -->
-<div class="store-state-page" id="payStatePage" style="display:none">
-  <div class="store-state-box">
-    <div class="store-state-icon" id="payStateIcon">🔒</div>
-    <h2 class="store-state-title" id="payStateTitle">Payment Link</h2>
-    <p class="store-state-text" id="payStateText"></p>
+<!-- Result State -->
+<div class="pay-shell" id="payStatePage" style="display:none">
+  <div class="pay-card" style="text-align:center">
+    <div class="state-icon" id="payStateIcon">🔒</div>
+    <h2 class="state-title" id="payStateTitle">…</h2>
+    <p class="state-text" id="payStateText">…</p>
+    <div id="payStateActions" style="margin-top:24px"></div>
   </div>
+</div>
+
+<div class="pay-footer">
+  Powered by <a href="https://storvix.ng">Storvix</a>
 </div>
 
 <script type="module">
-import { db, doc, getDoc, getDocs, collection, query, where, limit, updateDoc, serverTimestamp, addDoc } from "./js/firebase-config.js";
+import { db, doc, getDoc, getDocs, collection, query, where, limit, updateDoc, setDoc, serverTimestamp, addDoc, increment, writeBatch } from "./js/firebase-config.js";
 import { fmt, toast, getParam, btnLoading, normalisePhone, isValidPhone, isValidEmail, generateOrderNumber } from "./js/utils.js";
 import { PAYSTACK_PUBLIC_KEY } from "./js/plans.js";
 
 const ref = getParam("ref");
 
 async function init() {
-  if (!ref) return showState("404", "Invalid link", "This payment link is invalid.");
+  if (!ref) return showState("⚠️", "Invalid link", "This payment link is missing a reference.");
 
-  // Find link by ref (collectionGroup query)
+  // Find link by ref (collectionGroup-style search)
   let linkDoc = null;
   let sellerData = null;
 
   try {
-    // Search across all paymentLinks
     const sellersSnap = await getDocs(collection(db, "sellers"));
     for (const s of sellersSnap.docs) {
       const linksSnap = await getDocs(query(collection(db, "sellers", s.id, "paymentLinks"), where("ref","==",ref), limit(1)));
@@ -79,8 +282,8 @@ async function init() {
     }
   } catch (e) { console.error(e); }
 
-  if (!linkDoc) return showState("😕", "Link not found", "This payment link doesn't exist or has been removed.");
-  if (linkDoc.used && linkDoc.oneTime) return showState("🔒", "Link already used", "This one-time payment link has already been used.");
+  if (!linkDoc) return showState("😕", "Link not found", "This payment link doesn't exist or has been removed by the seller.");
+  if (linkDoc.used && linkDoc.oneTime) return showState("🔒", "Link already used", "This one-time payment link has already been used. Contact the seller for a new link.");
   if (linkDoc.expiryDate && new Date(linkDoc.expiryDate) < new Date()) return showState("⏰", "Link expired", "This payment link has expired.");
 
   // Render
@@ -88,11 +291,12 @@ async function init() {
   document.getElementById("payPage").style.display = "";
   if (sellerData.logoUrl) {
     document.getElementById("paySellerLogo").src = sellerData.logoUrl;
-    document.getElementById("paySellerLogo").style.display = "";
   }
-  document.getElementById("paySellerName").textContent  = sellerData.storeName || "—";
-  document.getElementById("payDescription").textContent = linkDoc.description;
+  document.title = `Pay ${sellerData.storeName} ${fmt(linkDoc.amount)} — Storvix`;
+  document.getElementById("paySellerName").textContent  = sellerData.storeName || "Seller";
+  document.getElementById("payDescription").textContent = linkDoc.description || "Payment";
   document.getElementById("payAmount").textContent      = fmt(linkDoc.amount);
+  document.getElementById("payBtnAmount").textContent   = fmt(linkDoc.amount + 100);
 
   // Submit
   document.getElementById("payForm").addEventListener("submit", async (e) => {
@@ -104,36 +308,79 @@ async function init() {
 
     if (!name || !isValidPhone(phone)) { toast("Enter your name and phone number.", "error"); return; }
 
-    btnLoading(btn, true, "Pay Now");
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner-pay" style="width:16px;height:16px;border-width:2px"></div> Loading…`;
 
     const payRef = `STX_PAY_${Date.now()}`;
+    const total  = linkDoc.amount + 100; // +₦100 service fee
 
     const handler = window.PaystackPop?.setup({
       key:      PAYSTACK_PUBLIC_KEY,
       email,
-      amount:   (linkDoc.amount + 100) * 100, // +₦100 storvix fee
+      amount:   total * 100, // kobo
       currency: "NGN",
       ref:      payRef,
       metadata: {
         custom_fields: [
-          { display_name: "Type",      variable_name: "type",      value: "payment_link" },
-          { display_name: "Link Ref",  variable_name: "link_ref",  value: ref },
-          { display_name: "Seller ID", variable_name: "seller_id", value: sellerData.id },
+          { display_name: "Type",        variable_name: "type",        value: "payment_link" },
+          { display_name: "Link Ref",    variable_name: "link_ref",    value: ref },
+          { display_name: "Seller ID",   variable_name: "seller_id",   value: sellerData.id },
           { display_name: "Buyer Phone", variable_name: "buyer_phone", value: phone },
         ]
       },
       callback: function (response) {
-        // Mark link used if one-time (fire and forget)
-        if (linkDoc.oneTime) {
-          updateDoc(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
-            used: true, usedAt: serverTimestamp(), usedBy: { name, phone, email },
-          }).catch(() => {});
-        }
-        showState("🎉", "Payment Successful!", `Thank you, ${name}! Your payment of ${fmt(linkDoc.amount)} to ${sellerData.storeName} has been received.`);
+        // Background: credit seller wallet, mark link used, record transaction
+        (async () => {
+          try {
+            const txnId = `pay_${ref}_${response.reference}`;
+            const batch = writeBatch(db);
+
+            // Credit seller wallet (full link.amount, since storvix takes the +₦100)
+            batch.update(doc(db, "sellers", sellerData.id), {
+              "wallet.balance":     increment(linkDoc.amount),
+              "wallet.totalEarned": increment(linkDoc.amount),
+            });
+
+            // Record transaction
+            batch.set(doc(db, "sellers", sellerData.id, "transactions", txnId), {
+              type:        "credit",
+              amount:      linkDoc.amount,
+              description: `Payment link: ${linkDoc.description || ref}`,
+              paymentRef:  response.reference,
+              linkRef:     ref,
+              createdAt:   serverTimestamp(),
+            });
+
+            // Mark link used
+            if (linkDoc.oneTime) {
+              batch.update(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
+                used: true, usedAt: serverTimestamp(),
+                usedBy: { name, phone, email, paymentRef: response.reference },
+              });
+            } else {
+              batch.update(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
+                usageCount: increment(1),
+                lastUsedAt: serverTimestamp(),
+              });
+            }
+
+            await batch.commit();
+          } catch (err) {
+            console.warn("Post-payment background tasks failed:", err);
+          }
+        })();
+
+        showState("🎉", "Payment Successful!",
+          `Thank you, ${name}. Your payment of ${fmt(linkDoc.amount)} to ${sellerData.storeName} has been received.`,
+          [
+            { label: "Done", primary: true, action: "close" }
+          ]);
       },
       onClose: function () {
         toast("Payment cancelled.", "info");
-        btnLoading(btn, false, "Pay Now");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
       },
     });
 
@@ -141,14 +388,24 @@ async function init() {
   });
 }
 
-function showState(icon, title, text) {
+function showState(icon, title, text, actions) {
   document.getElementById("pageLoader").style.display = "none";
   document.getElementById("payPage").style.display = "none";
   const el = document.getElementById("payStatePage");
-  el.style.display = "flex";
+  el.style.display = "";
   document.getElementById("payStateIcon").textContent = icon;
   document.getElementById("payStateTitle").textContent = title;
   document.getElementById("payStateText").textContent  = text;
+
+  const actionsEl = document.getElementById("payStateActions");
+  if (actions?.length) {
+    actionsEl.innerHTML = actions.map(a => `
+      <button onclick="${a.action === 'close' ? 'window.close();window.location.href=\"/\"' : ''}"
+              class="pay-btn" style="${a.primary ? '' : 'background:#F3F4F6;color:#374151'}">${a.label}</button>
+    `).join("");
+  } else {
+    actionsEl.innerHTML = "";
+  }
 }
 
 init();

@@ -714,54 +714,81 @@ function renderDiscounts() {
   const wrap = document.getElementById("discountsList");
   if (!allDiscounts.length) {
     wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">🏷️</div>
-      <h4>No discounts yet</h4><p>Create a discount to reward your customers.</p></div>`;
+      <h4>No coupons yet</h4><p>Create a coupon code to reward your customers.</p></div>`;
     return;
   }
-  wrap.innerHTML = allDiscounts.map(d => `
-    <div class="card card-sm" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <div>
-        <div style="font-weight:700">${d.code ? `Code: ${d.code}` : "Automatic discount"}</div>
-        <div style="font-size:.875rem;color:var(--text-muted)">
-          ${d.type === "percent" ? `${d.value}% off` : `₦${d.value.toLocaleString()} off`}
-          ${d.expiryDate ? ` · Expires ${fmtDate(d.expiryDate)}` : ""}
+  wrap.innerHTML = allDiscounts.map(d => {
+    const valStr = d.type === "percentage" ? `${d.value}% off` : `${fmt(d.value)} off`;
+    const usage  = d.maxUses ? `${d.usageCount || 0} / ${d.maxUses} uses` : `${d.usageCount || 0} uses`;
+    const isExpired = d.expiresAt?.toDate?.() && d.expiresAt.toDate() < new Date();
+    const isMaxed   = d.maxUses && (d.usageCount || 0) >= d.maxUses;
+    const status   = (d.active === false || isExpired || isMaxed) ? "Inactive" : "Active";
+    const badge    = status === "Active" ? "badge-green" : "badge-gray";
+    return `
+      <div class="card card-sm" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-family:monospace;font-size:1.0625rem;letter-spacing:.05em">${d.code || "—"}</div>
+          <div style="font-size:.875rem;color:var(--text-muted)">
+            ${valStr}
+            ${d.minOrderAmount ? ` · Min order ${fmt(d.minOrderAmount)}` : ""}
+            ${d.expiresAt?.toDate?.() ? ` · Expires ${fmtDate(d.expiresAt)}` : ""}
+            · ${usage}
+          </div>
         </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        ${d.status === "active" ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}
-        <button class="btn btn-sm btn-danger" onclick="deleteDiscount('${d.id}')">Delete</button>
-      </div>
-    </div>`).join("");
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge ${badge}">${status}</span>
+          <button class="btn btn-sm btn-danger" onclick="deleteDiscount('${d.id}')">Delete</button>
+        </div>
+      </div>`;
+  }).join("");
 }
 
 document.getElementById("addDiscountBtn")?.addEventListener("click", () => {
-  const hasCoupons = canAccess(seller, "coupons");
-  document.getElementById("dCodeGroup").style.display   = hasCoupons ? "" : "none";
-  document.getElementById("dExpiryGroup").style.display = hasCoupons ? "" : "none";
-  document.getElementById("dLimitGroup").style.display  = hasCoupons ? "" : "none";
   document.getElementById("discountForm").reset();
   openModal("discountModal");
 });
 
+// Update value hint based on type
+document.getElementById("dType")?.addEventListener("change", (e) => {
+  const hint = document.getElementById("dValueHint");
+  if (hint) hint.textContent = e.target.value === "percentage" ? "e.g. 10 = 10% off" : "e.g. 500 = ₦500 off";
+});
+
 document.getElementById("discountForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const code  = document.getElementById("dCode").value.trim().toUpperCase();
   const type  = document.getElementById("dType").value;
   const value = parseFloat(document.getElementById("dValue").value);
-  if (!value) { toast("Enter a discount value.", "error"); return; }
+  const minOrder = parseFloat(document.getElementById("dMinOrder")?.value) || 0;
+  const expiryRaw = document.getElementById("dExpiry")?.value;
+  const maxUses = parseInt(document.getElementById("dLimit")?.value) || null;
+
+  if (!code)              { toast("Enter a coupon code.", "error"); return; }
+  if (!value || value <= 0) { toast("Enter a valid discount value.", "error"); return; }
+  if (type === "percentage" && value > 100) { toast("Percentage cannot exceed 100.", "error"); return; }
+
+  // Check duplicate code
+  const dupe = allDiscounts.find(d => (d.code || "").toUpperCase() === code);
+  if (dupe) { toast(`Code "${code}" already exists.`, "error"); return; }
 
   const data = {
-    type, value, status: "active", usageCount: 0,
+    code, type, value,
+    minOrderAmount: minOrder || null,
+    maxUses,
+    usageCount: 0,
+    active: true,
+    expiresAt: expiryRaw ? new Date(expiryRaw + "T23:59:59") : null,
     createdAt: serverTimestamp(),
-    code:       document.getElementById("dCode")?.value.toUpperCase() || "",
-    expiryDate: document.getElementById("dExpiry")?.value || null,
-    usageLimit: parseInt(document.getElementById("dLimit")?.value) || null,
   };
 
-  await addDoc(collection(db, "sellers", seller.id, "discounts"), data);
-  allDiscounts.unshift({ id: "new", ...data });
-  renderDiscounts();
-  closeModal("discountModal");
-  toast("Discount created!", "success");
-  loadDiscounts(seller.id);
+  try {
+    await addDoc(collection(db, "sellers", seller.id, "discounts"), data);
+    closeModal("discountModal");
+    toast(`Coupon "${code}" created!`, "success");
+    loadDiscounts(seller.id);
+  } catch (err) {
+    toast("Failed to create coupon: " + err.message, "error");
+  }
 });
 
 window.deleteDiscount = async (id) => {
