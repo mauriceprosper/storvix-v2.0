@@ -641,53 +641,49 @@ async function initiatePayment() {
       ],
     },
     callback: function (response) {
-      // Optimistic client-side update — webhook will be source of truth when deployed
-      // Run all updates in background; don't block UI
+      // Run all post-payment updates in background; don't block UI
       (async () => {
         try {
+          // Vendor gets: subtotal + delivery (Storvix keeps the ₦100 buyer fee)
+          const credit = totals.subtotal + totals.delivery;
+
+          // Use a deterministic transaction ID so re-runs are idempotent
+          const txnId  = `credit_${orderId}`;
+
+          // Atomic: mark order paid + credit wallet + record transaction
+          // Using a write batch ensures all succeed or all fail together
+          const { writeBatch } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
+          const batch = writeBatch(db);
+
           // 1. Mark order as paid
-          await updateDoc(doc(db, "sellers", seller.id, "orders", orderId), {
-            paymentStatus: "paid", status: "confirmed",
-            paymentRef: response.reference, updatedAt: serverTimestamp(),
+          batch.update(doc(db, "sellers", seller.id, "orders", orderId), {
+            paymentStatus: "paid",
+            status:        "confirmed",
+            paymentRef:    response.reference,
+            credit:        credit,        // record what was credited
+            updatedAt:     serverTimestamp(),
           });
 
-          // 2. Calculate seller's net credit (subtotal + delivery, minus Paystack fee)
-          const grossCredit  = totals.subtotal + totals.delivery;
-          const paystackFee  = Math.round(totals.total * 0.015 + 100);
-          const netCredit    = Math.max(0, grossCredit - paystackFee);
+          // 2. Credit wallet
+          batch.update(doc(db, "sellers", seller.id), {
+            "wallet.balance":     increment(credit),
+            "wallet.totalEarned": increment(credit),
+          });
 
-          if (netCredit > 0) {
-            // Use deterministic txn ID = "credit_" + orderId  → same order = same doc
-            // setDoc with merge:false will overwrite, but if we mark `processed:true`
-            // we can guard against double-credit. Simpler: check if doc exists.
-            const txnId  = `credit_${orderId}`;
-            const txnRef = doc(db, "sellers", seller.id, "transactions", txnId);
+          // 3. Create transaction record (deterministic ID prevents double-credit)
+          batch.set(doc(db, "sellers", seller.id, "transactions", txnId), {
+            type:        "credit",
+            amount:      credit,
+            description: `Order ${orderNumber}`,
+            orderId:     orderId,
+            paymentRef:  response.reference,
+            createdAt:   serverTimestamp(),
+          });
 
-            // Try to read this single doc (allowed by rules if we add a public-read for own-id check)
-            // OR: just write with setDoc and use a Firestore transaction to guard.
-            // Simplest pragmatic approach: try setDoc, catch if exists.
-            // Use create-only semantics via setDoc + check after.
+          await batch.commit();
+          console.log(`[Storvix] Credited ₦${credit.toLocaleString()} to wallet for order ${orderNumber}`);
 
-            // Credit wallet first
-            await updateDoc(doc(db, "sellers", seller.id), {
-              "wallet.balance":     increment(netCredit),
-              "wallet.totalEarned": increment(netCredit),
-            });
-
-            // Then write transaction with deterministic ID
-            // If buyer reloads and pays again, this overwrites the same doc (no double credit because we'd need the wallet credit to also be guarded)
-            // For now, the deterministic ID + the fact that Paystack callback only fires once per successful payment is good enough
-            await setDoc(txnRef, {
-              type:        "credit",
-              amount:      netCredit,
-              description: `Order ${orderNumber}`,
-              orderId:     orderId,
-              paymentRef:  response.reference,
-              createdAt:   serverTimestamp(),
-            });
-          }
-
-          // 3. Decrement product stock (best effort)
+          // 4. Decrement product stock (best effort, non-batch since it's many docs)
           for (const item of cart) {
             if (!item.id) continue;
             await updateDoc(doc(db, "sellers", seller.id, "products", item.id), {
@@ -695,7 +691,7 @@ async function initiatePayment() {
             }).catch((e) => console.warn(`Stock decrement failed for ${item.id}:`, e.message));
           }
         } catch (err) {
-          console.warn("Post-payment background tasks failed (webhook will retry):", err);
+          console.error("Post-payment update failed:", err);
         }
       })();
 

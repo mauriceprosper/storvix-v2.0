@@ -22,18 +22,13 @@ service cloud.firestore {
       allow read: if true;
       // Only owner or admin can create/update; admin can suspend
       allow create: if isOwner(sellerId);
-      // Owner or admin can update everything; storefront can only touch wallet sub-fields
+      // Owner/admin can update everything; anyone else can only touch wallet-related fields
+      // (storefront credits wallet on successful payment)
       allow update: if isOwner(sellerId) || isAdmin()
         || (
-             request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['wallet'])
-           )
-        || (
-             // Dotted-path updates produce keys like 'wallet.balance', 'wallet.totalEarned'
-             request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['wallet', 'wallet.balance', 'wallet.totalEarned'])
-             && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['wallet', 'wallet.balance', 'wallet.totalEarned'])
+             // Match wallet field as a map OR via dotted paths
+             let allowedKeys = ['wallet', 'wallet.balance', 'wallet.totalEarned'];
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys)
            );
       allow delete: if isAdmin();
 
