@@ -56,109 +56,274 @@
     <!-- OVERVIEW -->
     <div class="admin-tab active" id="adminTab-overview">
       <h1 class="admin-section-title">Platform Overview</h1>
-      <div class="kpi-grid" style="margin-bottom:32px">
-        <div class="kpi-card"><div class="kpi-label">Total GMV</div><div class="kpi-value" id="adminGmv">₦0</div></div>
-        <div class="kpi-card"><div class="kpi-label">Sellers</div><div class="kpi-value" id="adminSellerCount">0</div></div>
-        <div class="kpi-card"><div class="kpi-label">Orders</div><div class="kpi-value" id="adminOrderCount">0</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pending Payouts</div><div class="kpi-value" id="adminPendingPayouts">0</div></div>
+      <p class="admin-section-sub">Real-time view of activity across Storvix.</p>
+
+      <!-- KPI Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card accent">
+          <div class="kpi-label">💰 Total GMV</div>
+          <div class="kpi-value" id="adminGmv">₦0</div>
+          <div class="kpi-sub" id="adminGmvSub">Lifetime</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">👥 Sellers</div>
+          <div class="kpi-value" id="adminSellerCount">0</div>
+          <div class="kpi-sub" id="adminSellerSub">All accounts</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">📦 Orders</div>
+          <div class="kpi-value" id="adminOrderCount">0</div>
+          <div class="kpi-sub" id="adminOrderSub">Lifetime</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">⏳ Pending Payouts</div>
+          <div class="kpi-value" id="adminPendingPayouts">0</div>
+          <div class="kpi-sub" id="adminPendingPayoutsSub">₦0 to pay</div>
+        </div>
+      </div>
+
+      <!-- Two-column: Chart + Activity -->
+      <div class="admin-grid-2">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div>
+              <h3 class="admin-card-title">Revenue last 14 days</h3>
+              <div class="admin-card-sub">Daily GMV</div>
+            </div>
+            <div class="adm-badge blue" id="adminRevenueDelta">—</div>
+          </div>
+          <div class="chart-area" id="adminRevenueChart">
+            <div class="admin-empty"><div class="admin-empty-icon">📊</div><p>Loading chart…</p></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div>
+              <h3 class="admin-card-title">Recent activity</h3>
+              <div class="admin-card-sub">Latest events</div>
+            </div>
+          </div>
+          <div class="activity-feed" id="adminActivityFeed">
+            <div class="admin-empty" style="padding:32px"><p>Loading…</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top sellers table -->
+      <div class="admin-card" style="padding:0">
+        <div class="admin-card-header" style="padding:18px 20px;border-bottom:1px solid var(--admin-border);margin:0">
+          <div>
+            <h3 class="admin-card-title">Top sellers</h3>
+            <div class="admin-card-sub">Ranked by GMV</div>
+          </div>
+        </div>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Store</th><th>Plan</th><th>Orders</th><th>GMV</th><th>Wallet</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="adminTopSellersBody">
+            <tr><td colspan="6" class="admin-empty"><div class="admin-empty-icon">🏆</div><p>Loading…</p></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- SELLERS -->
     <div class="admin-tab" id="adminTab-sellers">
       <h1 class="admin-section-title">Sellers</h1>
-      <div class="filter-bar" style="margin-bottom:16px">
-        <div class="search-input-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="text" placeholder="Search by store name or email…" id="adminSellerSearch">
-        </div>
+      <p class="admin-section-sub">All registered stores. Click a row for details.</p>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="sellerStatTotal">0</div></div>
+        <div class="stat-card"><div class="stat-label">Active (paid plan)</div><div class="stat-value" id="sellerStatActive" style="color:var(--admin-success)">0</div></div>
+        <div class="stat-card"><div class="stat-label">On trial</div><div class="stat-value" id="sellerStatTrial" style="color:var(--admin-accent)">0</div></div>
+        <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value" id="sellerStatSuspended" style="color:var(--admin-danger)">0</div></div>
       </div>
-      <div class="card" style="padding:0;overflow:hidden">
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Store</th><th>Owner</th><th>Plan</th><th>Status</th><th>Orders</th><th>Created</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="adminSellersBody">
-              <tr><td colspan="7" class="text-center" style="padding:48px;color:var(--text-muted)">Loading…</td></tr>
-            </tbody>
-          </table>
+
+      <div class="admin-toolbar">
+        <div class="admin-search">
+          <span class="admin-search-icon">🔍</span>
+          <input type="text" placeholder="Search by store name, owner, or email…" id="adminSellerSearch">
         </div>
+        <select class="admin-filter" id="sellerFilter">
+          <option value="all">All sellers</option>
+          <option value="active">Active</option>
+          <option value="trial">On trial</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="storeName">Store</th>
+              <th class="sortable" data-sort="email">Owner</th>
+              <th class="sortable" data-sort="plan">Plan</th>
+              <th class="sortable" data-sort="planStatus">Status</th>
+              <th class="sortable" data-sort="orderCount">Orders</th>
+              <th class="sortable" data-sort="walletBalance">Wallet</th>
+              <th class="sortable" data-sort="createdAt">Joined</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="adminSellersBody">
+            <tr><td colspan="8" class="admin-empty"><p>Loading…</p></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- ORDERS -->
     <div class="admin-tab" id="adminTab-orders">
       <h1 class="admin-section-title">All Orders</h1>
-      <div class="card" style="padding:0;overflow:hidden">
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr><th>Order #</th><th>Store</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr>
-            </thead>
-            <tbody id="adminOrdersBody">
-              <tr><td colspan="6" class="text-center" style="padding:48px;color:var(--text-muted)">Loading…</td></tr>
-            </tbody>
-          </table>
+      <p class="admin-section-sub">Every order placed across the platform.</p>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value" id="orderStatTotal">0</div></div>
+        <div class="stat-card"><div class="stat-label">Paid</div><div class="stat-value" id="orderStatPaid" style="color:var(--admin-success)">0</div></div>
+        <div class="stat-card"><div class="stat-label">Pending Payment</div><div class="stat-value" id="orderStatPending" style="color:var(--admin-warning)">0</div></div>
+        <div class="stat-card"><div class="stat-label">Cancelled</div><div class="stat-value" id="orderStatCancelled" style="color:var(--admin-danger)">0</div></div>
+      </div>
+
+      <div class="admin-toolbar">
+        <div class="admin-search">
+          <span class="admin-search-icon">🔍</span>
+          <input type="text" placeholder="Search by order #, customer, or store…" id="adminOrderSearch">
         </div>
+        <select class="admin-filter" id="orderFilter">
+          <option value="all">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="processing">Processing</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="orderNumber">Order #</th>
+              <th>Store</th>
+              <th>Customer</th>
+              <th class="sortable" data-sort="total">Amount</th>
+              <th class="sortable" data-sort="paymentStatus">Payment</th>
+              <th class="sortable" data-sort="status">Status</th>
+              <th class="sortable" data-sort="createdAt">Date</th>
+            </tr>
+          </thead>
+          <tbody id="adminOrdersBody">
+            <tr><td colspan="7" class="admin-empty"><p>Loading…</p></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- WITHDRAWALS -->
     <div class="admin-tab" id="adminTab-withdrawals">
       <h1 class="admin-section-title">Withdrawal Queue</h1>
-      <div class="card" style="padding:0;overflow:hidden">
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr><th>Seller</th><th>Amount</th><th>Bank</th><th>Status</th><th>Requested</th><th>Action</th></tr>
-            </thead>
-            <tbody id="adminWithdrawalsBody">
-              <tr><td colspan="6" class="text-center" style="padding:48px;color:var(--text-muted)">Loading…</td></tr>
-            </tbody>
-          </table>
-        </div>
+      <p class="admin-section-sub">Mark withdrawals as paid after sending the bank transfer manually.</p>
+
+      <div class="stat-row" id="withdrawalsSummary">
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:var(--admin-warning)">0</div><div class="stat-sub">—</div></div>
+        <div class="stat-card"><div class="stat-label">Paid</div><div class="stat-value" style="color:var(--admin-success)">0</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-label">Rejected</div><div class="stat-value" style="color:var(--admin-danger)">0</div><div class="stat-sub">All time</div></div>
+      </div>
+
+      <div class="admin-toolbar">
+        <select class="admin-filter" id="withdrawFilter" onchange="renderWithdrawals()">
+          <option value="all">All statuses</option>
+          <option value="pending" selected>Pending only</option>
+          <option value="paid">Paid only</option>
+          <option value="rejected">Rejected only</option>
+        </select>
+        <button class="admin-btn" onclick="loadWithdrawals()">↻ Refresh</button>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Seller</th><th>Amount</th><th>Bank Details</th>
+              <th>Status</th><th>Requested</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="adminWithdrawalsBody">
+            <tr><td colspan="6" class="admin-empty"><p>Loading…</p></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- SETTINGS -->
     <div class="admin-tab" id="adminTab-settings">
       <h1 class="admin-section-title">Platform Settings</h1>
-      <div class="card" style="margin-bottom:16px">
-        <h4 style="margin-bottom:12px">Webhook URLs</h4>
-        <div class="form-group" style="margin-bottom:12px">
-          <label class="form-label">Paystack Charge Webhook</label>
-          <div style="display:flex;gap:8px">
-            <input class="form-input" readonly value="https://europe-west1-storvix-95bc8.cloudfunctions.net/paystackWebhook" id="webhookCharge">
-            <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('webhookCharge').value, 'Webhook URL copied!')">Copy</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Paystack Subscription Webhook</label>
-          <div style="display:flex;gap:8px">
-            <input class="form-input" readonly value="https://europe-west1-storvix-95bc8.cloudfunctions.net/subscriptionWebhook" id="webhookSub">
-            <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('webhookSub').value, 'Webhook URL copied!')">Copy</button>
-          </div>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:16px">
-        <h4 style="margin-bottom:8px">Wallet Maintenance</h4>
-        <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:14px">
-          Scan all paid orders and credit any seller wallets that were missed (e.g. before the webhook was set up). Safe to run multiple times — won't double-credit.
+      <p class="admin-section-sub">Maintenance tools and platform configuration.</p>
+
+      <div class="admin-card" style="margin-bottom:18px">
+        <h3 class="admin-card-title" style="margin-bottom:6px">Wallet Maintenance</h3>
+        <p style="color:var(--admin-muted);font-size:.875rem;margin-bottom:14px">
+          Scan all paid orders and credit any seller wallets that were missed (e.g. from before the webhook was set up). Idempotent — safe to run multiple times.
         </p>
-        <button class="btn btn-primary" id="backfillBtn">Run Wallet Backfill</button>
-        <pre id="backfillResult" style="margin-top:14px;padding:12px;background:var(--bg);border-radius:8px;font-size:.8rem;display:none;white-space:pre-wrap;max-height:400px;overflow:auto"></pre>
+        <button class="admin-btn admin-btn-accent" id="backfillBtn">Run Wallet Backfill</button>
+        <pre id="backfillResult" style="margin-top:14px;padding:14px;background:var(--admin-bg);border-radius:10px;font-size:.8125rem;display:none;white-space:pre-wrap;max-height:400px;overflow:auto;font-family:inherit"></pre>
       </div>
-      <div class="card">
-        <h4 style="margin-bottom:8px">Support</h4>
-        <p style="color:var(--text-muted)">Contact: <a href="mailto:usestorvix@gmail.com" style="color:var(--purple);font-weight:600">usestorvix@gmail.com</a></p>
-        <p style="color:var(--text-muted)">WhatsApp: <a href="https://wa.me/2347089510199" style="color:var(--purple);font-weight:600">+234 708 951 0199</a></p>
+
+      <div class="admin-card" style="margin-bottom:18px">
+        <h3 class="admin-card-title" style="margin-bottom:6px">Webhook URLs</h3>
+        <p style="color:var(--admin-muted);font-size:.875rem;margin-bottom:14px">
+          Configure these in your provider dashboards.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <div style="font-size:.8125rem;font-weight:600;margin-bottom:4px">Paystack webhook</div>
+            <code style="display:block;padding:10px 12px;background:var(--admin-bg);border-radius:8px;font-size:.8125rem;word-break:break-all">https://europe-west1-storvix-95bc8.cloudfunctions.net/paystackWebhook</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3 class="admin-card-title" style="margin-bottom:6px">Support</h3>
+        <p style="color:var(--admin-muted);font-size:.875rem">
+          Need help? Reach out to the Storvix team at <strong>usestorvix@gmail.com</strong>.
+        </p>
       </div>
     </div>
-
   </main>
+</div>
+
+<!-- Seller drill-down modal -->
+<div class="admin-modal-overlay" id="sellerModal">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <div>
+        <h2 class="admin-card-title" id="sellerModalName" style="font-size:1.125rem">Store</h2>
+        <div class="admin-card-sub" id="sellerModalEmail">—</div>
+      </div>
+      <button class="admin-modal-close" onclick="closeSellerModal()">×</button>
+    </div>
+    <div class="admin-modal-body" id="sellerModalBody"></div>
+  </div>
+</div>
+
+<!-- Order drill-down modal -->
+<div class="admin-modal-overlay" id="orderModal">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <div>
+        <h2 class="admin-card-title" id="orderModalNumber" style="font-size:1.125rem;font-family:monospace">—</h2>
+        <div class="admin-card-sub" id="orderModalStore">—</div>
+      </div>
+      <button class="admin-modal-close" onclick="closeOrderModal()">×</button>
+    </div>
+    <div class="admin-modal-body" id="orderModalBody"></div>
+  </div>
 </div>
 
 <script type="module" src="js/admin.js"></script>
