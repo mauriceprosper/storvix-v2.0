@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earn ₦200 per referral — Storvix</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #FAFAFF; min-height: 100vh; margin: 0; }
+    .ref-shell { min-height: 100vh; padding: 32px 16px; }
+    .ref-container { max-width: 720px; margin: 0 auto; }
+
+    .ref-hero {
+      background: linear-gradient(135deg, #0066FF 0%, #4F2FE8 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 36px 28px;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .ref-hero img { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 14px; }
+    .ref-hero h1 { font-size: 1.875rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; }
+    .ref-hero p  { opacity: 0.9; max-width: 460px; margin: 0 auto; line-height: 1.55; }
+
+    .card-x {
+      background: #fff; border: 1px solid #E5E7EB; border-radius: 16px;
+      padding: 24px; margin-bottom: 16px;
+      box-shadow: 0 4px 16px -8px rgba(15,23,42,0.06);
+    }
+    .ref-stat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 16px; }
+    .ref-stat-card { background: #FAFBFC; border-radius: 12px; padding: 14px; }
+    .ref-stat-label { font-size: 0.7rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
+    .ref-stat-value { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: #111827; }
+
+    .form-x label { display: block; font-size: 0.8125rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .form-x input, .form-x select {
+      width: 100%; padding: 11px 14px;
+      border: 1px solid #D1D5DB; border-radius: 10px;
+      font-size: 0.9375rem; font-family: inherit;
+      box-sizing: border-box; transition: all 0.15s;
+    }
+    .form-x input:focus, .form-x select:focus {
+      outline: none; border-color: #0066FF; box-shadow: 0 0 0 3px rgba(0,102,255,0.1);
+    }
+    .form-x .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .form-x .field { margin-bottom: 14px; }
+
+    .btn-x {
+      width: 100%; padding: 13px;
+      background: #111827; color: white; border: none; border-radius: 12px;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .btn-x:hover { background: #1F2937; }
+    .btn-x:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-x.outline { background: transparent; color: #111827; border: 1px solid #D1D5DB; }
+    .btn-x.outline:hover { background: #F9FAFB; }
+
+    .code-display {
+      display: flex; align-items: center; gap: 12px;
+      padding: 18px;
+      background: linear-gradient(135deg, #0066FF 0%, #4F2FE8 100%);
+      color: white;
+      border-radius: 14px;
+      margin-bottom: 16px;
+    }
+    .code-display .label { font-size: 0.7rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    .code-display .code { font-size: 1.875rem; font-weight: 800; font-family: monospace; letter-spacing: 0.05em; line-height: 1; margin-top: 4px; }
+
+    .verify-result { margin-top: 12px; padding: 12px; border-radius: 10px; font-size: 0.875rem; display: none; }
+    .verify-result.success { background: rgba(16,185,129,0.08); color: #047857; border: 1px solid rgba(16,185,129,0.3); }
+    .verify-result.error   { background: rgba(239,68,68,0.08); color: #B91C1C; border: 1px solid rgba(239,68,68,0.3); }
+
+    .ref-back { text-align: center; margin-top: 14px; font-size: 0.8125rem; }
+    .ref-back a { color: #6B7280; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<div id="storvix-toast"></div>
+
+<div class="ref-shell">
+  <div class="ref-container">
+
+    <div class="ref-hero">
+      <img src="assets/logo.png" alt="">
+      <h1>Earn ₦200 per referral</h1>
+      <p>Share Storvix with friends who own businesses. Every time one of them signs up and pays the ₦1,000 starter pack, you earn ₦200. Withdraw once you hit ₦3,000.</p>
+    </div>
+
+    <!-- Sign up state (shown when not signed in) -->
+    <div id="signupState" style="display:none">
+      <div class="card-x">
+        <h3 style="margin:0 0 14px;font-size:1.0625rem">Sign up to get your code</h3>
+        <form class="form-x" id="signupForm">
+          <div class="field">
+            <label>Full name *</label>
+            <input type="text" id="signupName" placeholder="Adekunle Ade" required>
+          </div>
+          <div class="field">
+            <label>Email *</label>
+            <input type="email" id="signupEmail" placeholder="you@example.com" required>
+          </div>
+          <div class="field">
+            <label>WhatsApp number</label>
+            <input type="tel" id="signupPhone" placeholder="0801 234 5678">
+          </div>
+          <div class="field">
+            <label>Password *</label>
+            <input type="password" id="signupPassword" minlength="6" placeholder="Min 6 characters" required>
+          </div>
+          <button type="submit" class="btn-x" id="signupBtn">Create account & get code</button>
+        </form>
+        <div style="text-align:center;margin-top:12px;font-size:.875rem;color:#6B7280">
+          Already have a referrer account? <a href="#" id="showLoginBtn" style="color:#0066FF;font-weight:600">Sign in</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login state -->
+    <div id="loginState" style="display:none">
+      <div class="card-x">
+        <h3 style="margin:0 0 14px;font-size:1.0625rem">Sign in to your referrer account</h3>
+        <form class="form-x" id="loginForm">
+          <div class="field">
+            <label>Email *</label>
+            <input type="email" id="loginEmail" required>
+          </div>
+          <div class="field">
+            <label>Password *</label>
+            <input type="password" id="loginPassword" required>
+          </div>
+          <button type="submit" class="btn-x" id="loginBtn">Sign in</button>
+        </form>
+        <div style="text-align:center;margin-top:12px;font-size:.875rem;color:#6B7280">
+          Don't have an account? <a href="#" id="showSignupBtn" style="color:#0066FF;font-weight:600">Sign up</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard (signed in) -->
+    <div id="dashState" style="display:none">
+
+      <div class="card-x">
+        <div class="ref-stat-grid">
+          <div class="ref-stat-card">
+            <div class="ref-stat-label">Available Balance</div>
+            <div class="ref-stat-value" id="statBalance">₦0</div>
+          </div>
+          <div class="ref-stat-card">
+            <div class="ref-stat-label">Total Earned</div>
+            <div class="ref-stat-value" id="statEarned">₦0</div>
+          </div>
+          <div class="ref-stat-card">
+            <div class="ref-stat-label">Referrals</div>
+            <div class="ref-stat-value" id="statCount">0</div>
+          </div>
+        </div>
+
+        <div class="code-display">
+          <div style="flex:1">
+            <div class="label">Your code</div>
+            <div class="code" id="myCode">—</div>
+          </div>
+          <button class="btn-x outline" id="copyCodeBtn" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);width:auto;padding:10px 16px;font-size:.875rem">Copy</button>
+        </div>
+
+        <div class="field">
+          <label>Your share link</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" readonly id="myLink" style="flex:1;font-family:monospace;font-size:.875rem">
+            <button class="btn-x" id="copyLinkBtn" style="width:auto;padding:11px 16px;background:#0066FF">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Withdraw section -->
+      <div class="card-x">
+        <h3 style="margin:0 0 4px;font-size:1.0625rem">Withdraw</h3>
+        <p style="font-size:.875rem;color:#6B7280;margin:0 0 14px">Minimum withdrawal: ₦3,000.</p>
+
+        <div id="bankSection">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Recent earnings -->
+      <div class="card-x">
+        <h3 style="margin:0 0 14px;font-size:1.0625rem">Recent referrals</h3>
+        <div id="earningsList">
+          <div style="text-align:center;color:#9CA3AF;padding:32px;font-size:.875rem">No referrals yet — share your code to earn!</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:14px">
+        <button class="btn-x outline" id="signOutBtn" style="width:auto;padding:8px 16px;font-size:.8125rem">Sign out</button>
+      </div>
+    </div>
+
+    <div class="ref-back"><a href="/">← Back to Storvix</a></div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  auth, db,
+  doc, getDoc, setDoc, updateDoc, getDocs, collection, query, orderBy, limit,
+  serverTimestamp, addDoc, callVerifyBankAccount,
+  onAuthStateChanged,
+} from "./js/firebase-config.js";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { fmt, toast, NIGERIAN_BANKS } from "./js/utils.js";
+
+let currentUser = null;
+let referrer    = null;
+
+const $ = (id) => document.getElementById(id);
+
+function showState(name) {
+  ["signupState","loginState","dashState"].forEach(s => {
+    $(s).style.display = s === name ? "" : "none";
+  });
+}
+
+// ── Auth state ──
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    currentUser = null; referrer = null;
+    showState("signupState");
+    return;
+  }
+  currentUser = user;
+  // Try load referrer doc
+  try {
+    const snap = await getDoc(doc(db, "referrers", user.uid));
+    if (snap.exists()) {
+      referrer = { id: user.uid, ...snap.data() };
+      renderDashboard();
+      showState("dashState");
+    } else {
+      // Signed in but not registered as a referrer — could be a regular seller
+      // Offer to create referrer record
+      await createReferrerRecord(user, user.displayName || user.email.split("@")[0], user.email, "");
+    }
+  } catch (e) {
+    console.error("Load referrer failed:", e);
+    toast("Failed to load referrer data: " + e.message, "error");
+  }
+});
+
+// ── Sign up ──
+$("signupForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name  = $("signupName").value.trim();
+  const email = $("signupEmail").value.trim().toLowerCase();
+  const phone = $("signupPhone").value.trim();
+  const password = $("signupPassword").value;
+  const btn = $("signupBtn");
+
+  btn.disabled = true; btn.textContent = "Creating account…";
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    await createReferrerRecord(cred.user, name, email, phone);
+  } catch (err) {
+    console.error(err);
+    let msg = err.message || "Sign up failed";
+    if (err.code === "auth/email-already-in-use") msg = "Email already registered. Try signing in.";
+    if (err.code === "auth/weak-password")        msg = "Password too weak. Use at least 6 characters.";
+    toast(msg, "error");
+    btn.disabled = false;
+    btn.textContent = "Create account & get code";
+  }
+});
+
+async function createReferrerRecord(user, name, email, phone) {
+  // Generate code from name
+  const baseCode = (name || "REF").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6) || "REF";
+  let code = baseCode;
+  for (let i = 1; i <= 100; i++) {
+    const exists = await getDoc(doc(db, "referralCodes", code));
+    if (!exists.exists()) break;
+    code = baseCode + i;
+  }
+
+  // Create both docs
+  await setDoc(doc(db, "referrers", user.uid), {
+    name, email, phone: phone || "",
+    code,
+    balance:       0,
+    totalEarned:   0,
+    referralCount: 0,
+    createdAt:     serverTimestamp(),
+  });
+  await setDoc(doc(db, "referralCodes", code), {
+    code,
+    ownerType: "referrer",
+    ownerId:   user.uid,
+    ownerName: name,
+    createdAt: serverTimestamp(),
+  });
+
+  referrer = { id: user.uid, name, email, phone, code, balance: 0, totalEarned: 0, referralCount: 0 };
+  renderDashboard();
+  showState("dashState");
+  toast(`Welcome! Your code is ${code}`, "success");
+}
+
+// ── Login ──
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+  const btn = $("loginBtn");
+  btn.disabled = true; btn.textContent = "Signing in…";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    // onAuthStateChanged will handle the rest
+  } catch (err) {
+    toast(err.message || "Sign in failed", "error");
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+  }
+});
+
+$("showLoginBtn")?.addEventListener("click", (e) => { e.preventDefault(); showState("loginState"); });
+$("showSignupBtn")?.addEventListener("click", (e) => { e.preventDefault(); showState("signupState"); });
+
+$("signOutBtn")?.addEventListener("click", async () => {
+  await signOut(auth);
+});
+
+// ── Render dashboard ──
+function renderDashboard() {
+  if (!referrer) return;
+  $("statBalance").textContent = fmt(referrer.balance || 0);
+  $("statEarned").textContent  = fmt(referrer.totalEarned || 0);
+  $("statCount").textContent   = referrer.referralCount || 0;
+  $("myCode").textContent      = referrer.code || "—";
+  $("myLink").value            = `${window.location.origin}/onboarding.html?ref=${referrer.code || ""}`;
+
+  renderBankSection();
+  loadEarnings();
+}
+
+$("copyCodeBtn")?.addEventListener("click", () => {
+  navigator.clipboard.writeText(referrer.code).then(() => toast("Code copied!", "success"));
+});
+$("copyLinkBtn")?.addEventListener("click", (e) => {
+  navigator.clipboard.writeText($("myLink").value).then(() => {
+    e.target.textContent = "✓"; setTimeout(() => e.target.textContent = "Copy", 1200);
+  });
+});
+
+// ── Bank + Withdraw ──
+function renderBankSection() {
+  const sec = $("bankSection");
+  const canWithdraw = (referrer.balance || 0) >= 3000;
+
+  if (!referrer.bank?.accountNumber) {
+    // Need bank details
+    sec.innerHTML = `
+      <div style="padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;margin-bottom:14px;font-size:.875rem;color:#92400E">
+        Add your bank details to withdraw earnings.
+      </div>
+      <form class="form-x" id="bankForm">
+        <div class="field">
+          <label>Bank *</label>
+          <select id="bankSelect" required>
+            <option value="">Select your bank…</option>
+            ${NIGERIAN_BANKS.map(b => `<option value="${b.code}" data-name="${b.name}">${b.name}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Account number *</label>
+          <input type="text" id="bankAcct" maxlength="10" inputmode="numeric" placeholder="0123456789" required>
+        </div>
+        <div id="bankVerifyResult" class="verify-result"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button type="button" class="btn-x outline" id="verifyBankBtn" style="width:auto;padding:11px 16px">Verify</button>
+          <button type="button" class="btn-x" id="saveBankBtn" style="width:auto;padding:11px 16px;display:none">Save</button>
+        </div>
+      </form>`;
+
+    let verifiedData = null;
+    $("verifyBankBtn").onclick = async () => {
+      const bsel = $("bankSelect");
+      const acct = $("bankAcct").value.trim();
+      const code = bsel.value;
+      const bankName = bsel.options[bsel.selectedIndex]?.dataset.name;
+      const result = $("bankVerifyResult");
+      if (!code) return toast("Pick a bank.", "error");
+      if (!/^\d{10}$/.test(acct)) return toast("Account number must be 10 digits.", "error");
+
+      $("verifyBankBtn").disabled = true; $("verifyBankBtn").textContent = "Verifying…";
+      try {
+        const res = await callVerifyBankAccount({ bankCode: code, accountNumber: acct });
+        const accountName = res.data?.accountName;
+        if (!accountName) throw new Error("No name returned");
+        verifiedData = { bankCode: code, bankName, accountNumber: acct, accountName };
+        result.style.display = ""; result.className = "verify-result success";
+        result.innerHTML = `<strong>✓ ${accountName}</strong><br>${bankName} · ${acct}`;
+        $("saveBankBtn").style.display = "";
+      } catch (e) {
+        result.style.display = ""; result.className = "verify-result error";
+        result.innerHTML = `✗ ${e.message || "Could not verify"}`;
+        verifiedData = null;
+      }
+      $("verifyBankBtn").disabled = false; $("verifyBankBtn").textContent = "Verify";
+    };
+
+    $("saveBankBtn").onclick = async () => {
+      if (!verifiedData) return;
+      $("saveBankBtn").disabled = true;
+      try {
+        await updateDoc(doc(db, "referrers", referrer.id), {
+          bank: verifiedData, bankVerified: true, updatedAt: serverTimestamp(),
+        });
+        referrer.bank = verifiedData; referrer.bankVerified = true;
+        toast("Bank saved!", "success");
+        renderBankSection();
+      } catch (e) {
+        toast("Save failed: " + e.message, "error");
+      }
+      $("saveBankBtn").disabled = false;
+    };
+  } else {
+    // Show bank + withdraw button
+    sec.innerHTML = `
+      <div style="padding:14px;background:#FAFBFC;border-radius:10px;margin-bottom:14px">
+        <div style="font-size:.75rem;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Withdrawing to</div>
+        <div style="font-weight:600">${referrer.bank.bankName}</div>
+        <div style="font-family:monospace;font-size:.875rem;color:#6B7280">${referrer.bank.accountNumber} · ${referrer.bank.accountName}</div>
+        <button class="btn-x outline" id="changeBankBtn" style="width:auto;padding:6px 12px;font-size:.75rem;margin-top:8px">Change</button>
+      </div>
+      <button class="btn-x" id="withdrawBtn" ${canWithdraw ? "" : "disabled"}>
+        ${canWithdraw ? `Withdraw ${fmt(referrer.balance)}` : `Earn ${fmt(3000 - referrer.balance)} more to withdraw`}
+      </button>`;
+
+    $("changeBankBtn").onclick = async () => {
+      if (!confirm("Change bank details?")) return;
+      await updateDoc(doc(db, "referrers", referrer.id), { bank: null, bankVerified: false });
+      referrer.bank = null;
+      renderBankSection();
+    };
+
+    $("withdrawBtn").onclick = async () => {
+      if (!canWithdraw) return;
+      if (!confirm(`Withdraw ${fmt(referrer.balance)} to ${referrer.bank.bankName} - ${referrer.bank.accountNumber}?`)) return;
+      const btn = $("withdrawBtn"); btn.disabled = true; btn.textContent = "Processing…";
+      try {
+        // Create withdrawal request — Cloud Function processes it via Paystack
+        await addDoc(collection(db, "referrers", referrer.id, "withdrawals"), {
+          referrerId: referrer.id,
+          amount:     referrer.balance,
+          bank:       referrer.bank,
+          status:     "pending",
+          requestedAt: serverTimestamp(),
+        });
+        // Optimistically zero the balance display
+        toast("Withdrawal requested! You'll get the funds shortly.", "success");
+        renderDashboard();
+      } catch (e) {
+        toast("Failed: " + e.message, "error");
+        btn.disabled = false;
+      }
+    };
+  }
+}
+
+async function loadEarnings() {
+  const wrap = $("earningsList");
+  try {
+    const snap = await getDocs(query(
+      collection(db, "referrers", referrer.id, "earnings"),
+      orderBy("createdAt", "desc"),
+      limit(20)
+    ));
+    if (snap.empty) {
+      wrap.innerHTML = `<div style="text-align:center;color:#9CA3AF;padding:32px;font-size:.875rem">No referrals yet — share your code to earn!</div>`;
+      return;
+    }
+    wrap.innerHTML = snap.docs.map(d => {
+      const e = d.data();
+      const when = e.createdAt?.toDate?.() ? new Date(e.createdAt.toDate()).toLocaleDateString("en-NG", { day:"numeric", month:"short" }) : "";
+      return `
+        <div style="padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600;font-size:.9375rem">${e.referredStoreName || "New seller"}</div>
+            <div style="font-size:.75rem;color:#6B7280">Signed up ${when}</div>
+          </div>
+          <div style="font-weight:700;color:#047857">+${fmt(e.amount || 0)}</div>
+        </div>`;
+    }).join("");
+  } catch (err) {
+    console.warn("Earnings load failed:", err.message);
+  }
+}
+</script>
+</body>
+</html>

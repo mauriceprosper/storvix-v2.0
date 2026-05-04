@@ -68,8 +68,8 @@
 </div>
 
 <script type="module">
-import { db, collectionGroup, query, where, limit, getDocs } from "./js/firebase-config.js";
-import { fmt, fmtDate } from "./js/utils.js";
+import { db, doc, getDoc } from "./js/firebase-config.js";
+import { fmt } from "./js/utils.js";
 
 const inputEl  = document.getElementById("refInput");
 const btnEl    = document.getElementById("searchBtn");
@@ -167,16 +167,24 @@ async function searchOrder(ref) {
   if (!ref) return;
   resultEl.innerHTML = `<div class="err-box"><div style="font-size:1.5rem">⏳</div><p>Looking up your order…</p></div>`;
   try {
-    const q = query(collectionGroup(db, "orders"), where("orderNumber", "==", ref), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) {
+    // Step 1: lookup orderRefs/{orderNumber} → tells us sellerId + orderId
+    const refSnap = await getDoc(doc(db, "orderRefs", ref));
+    if (!refSnap.exists()) {
       renderError(`We couldn't find an order with reference "${ref}". Check the number and try again.`);
       return;
     }
-    renderOrder(snap.docs[0].data());
+    const { sellerId, orderId } = refSnap.data();
+
+    // Step 2: fetch the actual order
+    const orderSnap = await getDoc(doc(db, "sellers", sellerId, "orders", orderId));
+    if (!orderSnap.exists()) {
+      renderError("Order details unavailable. Contact the seller.");
+      return;
+    }
+    renderOrder(orderSnap.data());
   } catch (err) {
-    console.error(err);
-    renderError("Something went wrong. Please try again.");
+    console.error("Track lookup failed:", err);
+    renderError(err.message || "Something went wrong. Please try again.");
   }
 }
 

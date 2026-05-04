@@ -74,6 +74,9 @@
         <span class="nav-icon">📨</span> Inbox
         <span class="nav-badge" id="inboxBadge" style="display:none">0</span>
       </div>
+      <div class="nav-item" data-tab="refer">
+        <span class="nav-icon">🎁</span> Refer & Earn
+      </div>
       <div class="nav-item" data-tab="settings">
         <span class="nav-icon">⚙️</span> Store Settings
       </div>
@@ -434,25 +437,20 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
-          <div class="card">
+        <div style="margin-bottom:24px">
+          <div class="card" style="max-width:520px">
             <h4 style="margin-bottom:16px">Withdraw Funds</h4>
             <div class="form-group" style="margin-bottom:12px">
               <label class="form-label">Amount</label>
               <input class="form-input" type="number" id="withdrawAmount" placeholder="Enter amount (₦)">
-              <span class="form-hint">Withdraw any amount, anytime. 1% fee (capped at ₦100).</span>
+              <span class="form-hint">Withdraw any amount, anytime. 1% fee (capped at ₦100). Auto-paid via Paystack.</span>
             </div>
             <div style="background:var(--bg);border-radius:var(--r);padding:12px;margin-bottom:12px">
               <div style="font-size:.875rem;color:var(--text-muted);margin-bottom:4px">Sending to:</div>
               <div style="font-weight:600" id="withdrawBankInfo">No bank account on file</div>
+              <button onclick="switchTab('settings')" style="border:none;background:none;color:var(--purple);font-size:.8125rem;font-weight:600;padding:4px 0;cursor:pointer;margin-top:4px">Edit bank details →</button>
             </div>
             <button class="btn btn-primary btn-block" id="withdrawBtn">Withdraw</button>
-          </div>
-
-          <div class="card" style="padding:20px">
-            <h4 style="margin-bottom:4px">Paystack DVA</h4>
-            <p style="font-size:.875rem;margin-bottom:16px">Get a free Nigerian business bank account powered by Paystack.</p>
-            <button class="btn btn-secondary btn-block" onclick="window.open('https://dashboard.paystack.com/#/virtual-account','_blank')">Get Free Business Account ↗</button>
           </div>
         </div>
 
@@ -586,9 +584,114 @@
           </div>
         </div>
 
+        <!-- Bank Account for withdrawals -->
+        <div class="settings-section">
+          <div class="settings-section-title">Withdrawal Bank Account</div>
+          <p style="color:var(--text-muted);font-size:.875rem;margin-bottom:16px">All payouts are sent here. We verify the account name with Paystack before saving.</p>
+
+          <div id="bankCurrent" style="display:none;background:var(--bg);padding:14px;border-radius:10px;margin-bottom:14px">
+            <div style="font-size:.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Current</div>
+            <div id="bankCurrentText" style="font-weight:600">—</div>
+            <button class="btn btn-sm btn-secondary" id="bankEditBtn" style="margin-top:10px">Change Bank Details</button>
+          </div>
+
+          <div id="bankEditForm" style="display:none">
+            <div class="settings-grid">
+              <div class="form-group">
+                <label class="form-label">Bank *</label>
+                <select class="form-input" id="bankNameSelect">
+                  <option value="">Select your bank…</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Account number *</label>
+                <input class="form-input" type="text" id="bankAcctNumber" maxlength="10" inputmode="numeric" placeholder="0123456789">
+              </div>
+            </div>
+
+            <div id="bankVerifyResult" style="margin-top:14px;display:none;padding:14px;border-radius:10px"></div>
+
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button class="btn btn-secondary" id="bankVerifyBtn" type="button">Verify Account</button>
+              <button class="btn btn-primary" id="bankConfirmBtn" type="button" style="display:none">Confirm & Save</button>
+              <button class="btn btn-secondary" id="bankCancelEditBtn" type="button" style="display:none">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px">
           <button class="btn btn-secondary" id="settingsCancel">Cancel</button>
           <button class="btn btn-primary" id="settingsSave">Save Changes</button>
+        </div>
+      </div>
+
+      <!-- ─────────── REFER & EARN ─────────── -->
+      <div class="dash-tab" id="tab-refer">
+        <div class="dash-section-head" style="margin-bottom:18px">
+          <h2 style="font-size:1.5rem;font-weight:700;margin:0">Refer & Earn</h2>
+          <p style="color:var(--text-muted);font-size:.9375rem;margin:4px 0 0">Earn ₦200 for every seller who signs up using your code.</p>
+        </div>
+
+        <!-- Hero card -->
+        <div style="background:linear-gradient(135deg,#0066FF 0%,#4F2FE8 100%);color:#fff;border-radius:18px;padding:28px;margin-bottom:18px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+            <div>
+              <div style="font-size:.7rem;opacity:.85;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Earned</div>
+              <div style="font-size:1.875rem;font-weight:800;line-height:1" id="referralEarnedDisplay">₦0</div>
+            </div>
+            <div>
+              <div style="font-size:.7rem;opacity:.85;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Sellers Referred</div>
+              <div style="font-size:1.875rem;font-weight:800;line-height:1" id="referralCountDisplay">0</div>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,0.12);padding:14px 16px;border-radius:12px;backdrop-filter:blur(8px)">
+            <div style="font-size:.7rem;opacity:.85;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Your referral code</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div id="myReferralCode" style="font-size:1.5rem;font-weight:800;font-family:monospace;letter-spacing:.05em">—</div>
+              <button class="btn btn-sm" id="copyReferralCodeBtn" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3)">Copy code</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sharable link -->
+        <div class="card" style="margin-bottom:18px">
+          <h4 style="margin-bottom:10px;font-size:.9375rem">Your shareable link</h4>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" readonly id="myReferralLink" value=""
+                   style="flex:1;padding:11px 14px;border:1px solid var(--border);border-radius:10px;font-size:.875rem;background:#fff;font-family:monospace;min-width:0">
+            <button class="btn btn-primary" id="copyReferralLinkBtn">Copy link</button>
+          </div>
+          <p style="font-size:.8125rem;color:var(--text-muted);margin-top:10px">
+            Share this link. When someone signs up and pays the ₦1,000 starter pack, ₦200 lands in your wallet automatically.
+          </p>
+        </div>
+
+        <!-- How it works -->
+        <div class="card">
+          <h4 style="margin-bottom:14px;font-size:.9375rem">How it works</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(102,71,255,0.1);display:flex;align-items:center;justify-content:center;color:var(--purple);font-weight:700;flex-shrink:0">1</div>
+              <div>
+                <div style="font-weight:600;margin-bottom:2px">Share your code</div>
+                <div style="font-size:.8125rem;color:var(--text-muted)">Send your link or code to friends.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(102,71,255,0.1);display:flex;align-items:center;justify-content:center;color:var(--purple);font-weight:700;flex-shrink:0">2</div>
+              <div>
+                <div style="font-weight:600;margin-bottom:2px">They sign up</div>
+                <div style="font-size:.8125rem;color:var(--text-muted)">They enter your code on the last step.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(102,71,255,0.1);display:flex;align-items:center;justify-content:center;color:var(--purple);font-weight:700;flex-shrink:0">3</div>
+              <div>
+                <div style="font-weight:600;margin-bottom:2px">You earn ₦200</div>
+                <div style="font-size:.8125rem;color:var(--text-muted)">Goes straight to your wallet.</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

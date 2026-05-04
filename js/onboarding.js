@@ -4,7 +4,7 @@
 
 import {
   auth, db, onAuthStateChanged, getSeller, createSeller,
-  uploadImage, checkSlugAvailable, serverTimestamp, doc, updateDoc,
+  uploadImage, checkSlugAvailable, serverTimestamp, doc, updateDoc, getDoc,
   Timestamp,
 } from "./firebase-config.js";
 import {
@@ -400,6 +400,7 @@ async function finalizeSellerCreation(paymentRef, btn) {
       bannerUrl,
       bank:          formData.bank || {},
       bankVerified:  formData.bankVerified,
+      referredBy:    formData.referredBy || null,
     });
 
     // Clean up session storage
@@ -416,3 +417,52 @@ async function finalizeSellerCreation(paymentRef, btn) {
     btn.textContent = "Retry";
   }
 }
+
+// ═════════════════════════════════════════════════════════════
+//  REFERRAL CODE check (step 5)
+// ═════════════════════════════════════════════════════════════
+
+// Pre-fill referral from URL ?ref=CODE
+const urlRef = getParam("ref") || sessionStorage.getItem("referralCode");
+if (urlRef) {
+  const inp = document.getElementById("referralCodeInput");
+  if (inp) {
+    inp.value = urlRef.toUpperCase();
+    sessionStorage.setItem("referralCode", urlRef.toUpperCase());
+  }
+}
+
+document.getElementById("checkReferralBtn")?.addEventListener("click", async () => {
+  const inp = document.getElementById("referralCodeInput");
+  const result = document.getElementById("referralCheckResult");
+  const code = (inp.value || "").trim().toUpperCase();
+
+  if (!code) {
+    result.style.color = "var(--text-muted)";
+    result.textContent = "Skip if you weren't referred.";
+    formData.referredBy = null;
+    return;
+  }
+
+  result.style.color = "var(--text-muted)";
+  result.textContent = "Checking…";
+
+  try {
+    const snap = await getDoc(doc(db, "referralCodes", code));
+    if (!snap.exists()) {
+      result.style.color = "#DC2626";
+      result.textContent = `✗ "${code}" is not a valid code.`;
+      formData.referredBy = null;
+      return;
+    }
+    const data = snap.data();
+    result.style.color = "#047857";
+    result.textContent = `✓ Code valid (${data.ownerName || data.ownerType || "verified"}). The referrer will earn ₦200.`;
+    formData.referredBy = code;
+  } catch (err) {
+    console.warn("Referral check failed:", err);
+    result.style.color = "#DC2626";
+    result.textContent = "Could not verify code. You can still continue.";
+    formData.referredBy = null;
+  }
+});

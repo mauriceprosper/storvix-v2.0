@@ -836,63 +836,95 @@ async function createNotification(sellerId, payload) {
 //  ADMIN: send message to one seller or broadcast to many
 // ═══════════════════════════════════════════════════════════════
 exports.adminSendMessage = onCall(CALLABLE_OPTS, async (request) => {
-  const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
-  const callerEmail  = (request.auth?.token?.email || "").toLowerCase().trim();
-  if (!ADMIN_EMAILS.includes(callerEmail)) {
-    throw new HttpsError("permission-denied", "Admin only.");
-  }
+  try {
+    const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
+    const callerEmail  = (request.auth?.token?.email || "").toLowerCase().trim();
+    console.log(`[adminSendMessage] Caller: "${callerEmail}"`);
 
-  const { recipients, title, body, icon } = request.data;
-  if (!title || !body) {
-    throw new HttpsError("invalid-argument", "Title and body required.");
-  }
-
-  // recipients: "all" | "active" | "trial" | "starter" | array of seller IDs
-  let sellerIds = [];
-  if (Array.isArray(recipients)) {
-    sellerIds = recipients;
-  } else if (recipients === "all") {
-    const snap = await db.collection("sellers").get();
-    sellerIds = snap.docs.map(d => d.id);
-  } else {
-    const snap = await db.collection("sellers").where("planStatus", "==", recipients).get();
-    sellerIds = snap.docs.map(d => d.id);
-  }
-
-  console.log(`[broadcast] Sending to ${sellerIds.length} seller(s)`);
-
-  // Batched writes
-  const BATCH_SIZE = 400;
-  let sent = 0;
-  for (let i = 0; i < sellerIds.length; i += BATCH_SIZE) {
-    const slice = sellerIds.slice(i, i + BATCH_SIZE);
-    const batch = db.batch();
-    for (const sid of slice) {
-      const ref = db.collection("sellers").doc(sid).collection("notifications").doc();
-      batch.set(ref, {
-        type:    "admin_message",
-        icon:    icon || "📢",
-        title,
-        body,
-        from:    callerEmail,
-        read:    false,
-        createdAt: FieldValue.serverTimestamp(),
-      });
+    if (!callerEmail) {
+      throw new HttpsError("unauthenticated", "Not signed in.");
     }
-    await batch.commit();
-    sent += slice.length;
+    if (!ADMIN_EMAILS.includes(callerEmail)) {
+      throw new HttpsError("permission-denied", `Admin only. Caller "${callerEmail}" not allowed.`);
+    }
+
+    const { recipients, title, body, icon } = request.data || {};
+    if (!title || !body) {
+      throw new HttpsError("invalid-argument", "Title and body required.");
+    }
+    if (!recipients) {
+      throw new HttpsError("invalid-argument", "Recipients required.");
+    }
+
+    // recipients: "all" | "active" | "trial" | "starter" | array of seller IDs
+    let sellerIds = [];
+    if (Array.isArray(recipients)) {
+      sellerIds = recipients.filter(Boolean);
+    } else if (recipients === "all") {
+      const snap = await db.collection("sellers").get();
+      sellerIds = snap.docs.map(d => d.id);
+    } else if (typeof recipients === "string") {
+      const snap = await db.collection("sellers").where("planStatus", "==", recipients).get();
+      sellerIds = snap.docs.map(d => d.id);
+    } else {
+      throw new HttpsError("invalid-argument", `Invalid recipients format: ${typeof recipients}`);
+    }
+
+    console.log(`[adminSendMessage] Sending to ${sellerIds.length} seller(s)`);
+
+    if (sellerIds.length === 0) {
+      // No-op but successful (e.g. nobody on starter pack yet)
+      await db.collection("adminBroadcasts").add({
+        title, body, icon: icon || "📢",
+        recipients,
+        recipientCount: 0,
+        sentBy: callerEmail,
+        sentAt: FieldValue.serverTimestamp(),
+        note: "No matching recipients",
+      });
+      return { success: true, sent: 0, message: "No matching recipients" };
+    }
+
+    // Batched writes
+    const BATCH_SIZE = 400;
+    let sent = 0;
+    for (let i = 0; i < sellerIds.length; i += BATCH_SIZE) {
+      const slice = sellerIds.slice(i, i + BATCH_SIZE);
+      const batch = db.batch();
+      for (const sid of slice) {
+        const ref = db.collection("sellers").doc(sid).collection("notifications").doc();
+        batch.set(ref, {
+          type:    "admin_message",
+          icon:    icon || "📢",
+          title:   String(title),
+          body:    String(body),
+          from:    callerEmail,
+          read:    false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      sent += slice.length;
+    }
+
+    // Log the broadcast
+    await db.collection("adminBroadcasts").add({
+      title: String(title),
+      body:  String(body),
+      icon:  icon || "📢",
+      recipients,
+      recipientCount: sent,
+      sentBy: callerEmail,
+      sentAt: FieldValue.serverTimestamp(),
+    });
+
+    console.log(`[adminSendMessage] Success — ${sent} sent`);
+    return { success: true, sent };
+  } catch (err) {
+    console.error("[adminSendMessage] Error:", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err.message || "Unknown error", { stack: err.stack });
   }
-
-  // Log the broadcast
-  await db.collection("adminBroadcasts").add({
-    title, body, icon: icon || "📢",
-    recipients,
-    recipientCount: sent,
-    sentBy: callerEmail,
-    sentAt: FieldValue.serverTimestamp(),
-  });
-
-  return { success: true, sent };
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -939,4 +971,284 @@ exports.subscriptionExpiryReminder = onSchedule({
   }
 
   console.log(`[expiry-reminder] Notified ${notified} seller(s)`);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  PAYMENT LINK PAID — notify seller when one-time link gets paid
+// ═══════════════════════════════════════════════════════════════
+exports.onPaymentLinkPaid = onDocumentUpdated({
+  document: "sellers/{sellerId}/paymentLinks/{linkId}",
+  region:    FUNCTIONS_REGION,
+}, async (event) => {
+  const before = event.data?.before?.data();
+  const after  = event.data?.after?.data();
+  if (!before || !after) return;
+
+  const sellerId = event.params.sellerId;
+
+  // Trigger only on transition: oneTime link goes from unused -> used
+  // OR usageCount increments on a reusable link
+  const oneTimeJustPaid = !before.used && after.used && after.oneTime;
+  const reusableUsed = !before.oneTime && (after.usageCount || 0) > (before.usageCount || 0);
+
+  if (!oneTimeJustPaid && !reusableUsed) return;
+
+  const payerName  = after.usedBy?.name  || "Someone";
+  const payerPhone = after.usedBy?.phone || "—";
+  const payerEmail = after.usedBy?.email || "—";
+  const paymentRef = after.usedBy?.paymentRef || "—";
+
+  await createNotification(sellerId, {
+    type: "payment_link_paid",
+    icon: "💵",
+    title: `${payerName} paid ₦${(after.amount || 0).toLocaleString()}`,
+    body: `For "${after.description || "your payment link"}". Phone: ${payerPhone} · Email: ${payerEmail} · Ref: ${paymentRef}`,
+    link: "/dashboard.html?tab=paylinks",
+  });
+
+  console.log(`[link-paid] Notified seller ${sellerId.slice(0,8)} — link ${event.params.linkId}`);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  REFERRAL COMMISSION — fires when a new seller pays starter pack
+//  with a referral code, credits the referrer ₦200
+// ═══════════════════════════════════════════════════════════════
+const REFERRAL_AMOUNT = 200;
+
+exports.onSellerCreated = onDocumentCreated({
+  document: "sellers/{sellerId}",
+  region:    FUNCTIONS_REGION,
+}, async (event) => {
+  const seller = event.data?.data();
+  const sellerId = event.params.sellerId;
+  if (!seller) return;
+
+  const referredBy = (seller.referredBy || "").toUpperCase().trim();
+  if (!referredBy) return;
+  if (!seller.starterPaidAt) {
+    console.log(`[referral] ${sellerId} has code but hasn't paid yet`);
+    return;
+  }
+
+  // Look up the referral code owner
+  const codeSnap = await db.doc(`referralCodes/${referredBy}`).get();
+  if (!codeSnap.exists) {
+    console.warn(`[referral] Code "${referredBy}" not found`);
+    return;
+  }
+  const { ownerType, ownerId } = codeSnap.data();
+
+  // Don't allow self-referral
+  if (ownerId === sellerId) {
+    console.log(`[referral] ${sellerId} tried to self-refer`);
+    return;
+  }
+
+  if (ownerType === "seller") {
+    // Credit owner's wallet + create transaction
+    const txnId = `referral_${sellerId}`;  // idempotent
+    const txnRef = db.doc(`sellers/${ownerId}/transactions/${txnId}`);
+    const txnExists = await txnRef.get();
+    if (txnExists.exists) {
+      console.log(`[referral] Already credited for ${sellerId}`);
+      return;
+    }
+
+    const batch = db.batch();
+    batch.update(db.doc(`sellers/${ownerId}`), {
+      "wallet.balance":     FieldValue.increment(REFERRAL_AMOUNT),
+      "wallet.totalEarned": FieldValue.increment(REFERRAL_AMOUNT),
+      referralCount:        FieldValue.increment(1),
+      referralEarned:       FieldValue.increment(REFERRAL_AMOUNT),
+    });
+    batch.set(txnRef, {
+      type: "credit",
+      amount: REFERRAL_AMOUNT,
+      description: `Referral bonus — ${seller.storeName || "new seller"}`,
+      source: "referral",
+      referredSellerId: sellerId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+
+    await createNotification(ownerId, {
+      type: "referral_earned",
+      icon: "🎉",
+      title: `+₦${REFERRAL_AMOUNT} referral bonus!`,
+      body: `${seller.storeName || "A new seller"} signed up using your referral code. The bonus has been added to your wallet.`,
+      link: "/dashboard.html?tab=wallet",
+    });
+
+    console.log(`[referral] Credited seller ${ownerId.slice(0,8)} ₦${REFERRAL_AMOUNT}`);
+  } else if (ownerType === "referrer") {
+    // Credit non-seller referrer
+    const txnRef = db.doc(`referrers/${ownerId}/earnings/${sellerId}`);
+    const txnExists = await txnRef.get();
+    if (txnExists.exists) return;
+
+    const batch = db.batch();
+    batch.update(db.doc(`referrers/${ownerId}`), {
+      balance:     FieldValue.increment(REFERRAL_AMOUNT),
+      totalEarned: FieldValue.increment(REFERRAL_AMOUNT),
+      referralCount: FieldValue.increment(1),
+    });
+    batch.set(txnRef, {
+      type: "credit",
+      amount: REFERRAL_AMOUNT,
+      referredSellerId: sellerId,
+      referredStoreName: seller.storeName || "",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+
+    console.log(`[referral] Credited referrer ${ownerId.slice(0,8)} ₦${REFERRAL_AMOUNT}`);
+  }
+});
+
+// Trigger commission when starter is paid AFTER seller doc was created
+// (covers case where seller was created before payment completed)
+exports.onSellerStarterPaid = onDocumentUpdated({
+  document: "sellers/{sellerId}",
+  region:    FUNCTIONS_REGION,
+}, async (event) => {
+  const before = event.data?.before?.data();
+  const after  = event.data?.after?.data();
+  if (!before || !after) return;
+
+  // Only fire when starter was just paid (not previously paid)
+  if (before.starterPaidAt || !after.starterPaidAt) return;
+  if (!after.referredBy) return;
+
+  // Re-emit logic by calling the same routine
+  // (Firestore doesn't let us call other triggers, so we duplicate)
+  const sellerId = event.params.sellerId;
+  const referredBy = after.referredBy.toUpperCase().trim();
+
+  const codeSnap = await db.doc(`referralCodes/${referredBy}`).get();
+  if (!codeSnap.exists) return;
+  const { ownerType, ownerId } = codeSnap.data();
+  if (ownerId === sellerId) return;
+
+  if (ownerType === "seller") {
+    const txnRef = db.doc(`sellers/${ownerId}/transactions/referral_${sellerId}`);
+    if ((await txnRef.get()).exists) return;
+
+    const batch = db.batch();
+    batch.update(db.doc(`sellers/${ownerId}`), {
+      "wallet.balance":     FieldValue.increment(REFERRAL_AMOUNT),
+      "wallet.totalEarned": FieldValue.increment(REFERRAL_AMOUNT),
+      referralCount:        FieldValue.increment(1),
+      referralEarned:       FieldValue.increment(REFERRAL_AMOUNT),
+    });
+    batch.set(txnRef, {
+      type: "credit",
+      amount: REFERRAL_AMOUNT,
+      description: `Referral bonus — ${after.storeName || "new seller"}`,
+      source: "referral",
+      referredSellerId: sellerId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+    await createNotification(ownerId, {
+      type: "referral_earned",
+      icon: "🎉",
+      title: `+₦${REFERRAL_AMOUNT} referral bonus!`,
+      body: `${after.storeName || "A new seller"} signed up using your referral code.`,
+      link: "/dashboard.html?tab=wallet",
+    });
+  } else if (ownerType === "referrer") {
+    const txnRef = db.doc(`referrers/${ownerId}/earnings/${sellerId}`);
+    if ((await txnRef.get()).exists) return;
+    const batch = db.batch();
+    batch.update(db.doc(`referrers/${ownerId}`), {
+      balance:     FieldValue.increment(REFERRAL_AMOUNT),
+      totalEarned: FieldValue.increment(REFERRAL_AMOUNT),
+      referralCount: FieldValue.increment(1),
+    });
+    batch.set(txnRef, {
+      type: "credit",
+      amount: REFERRAL_AMOUNT,
+      referredSellerId: sellerId,
+      referredStoreName: after.storeName || "",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  REFERRER WITHDRAWAL — auto-process via Paystack Transfer
+// ═══════════════════════════════════════════════════════════════
+exports.onReferrerWithdrawalCreated = onDocumentCreated({
+  document: "referrers/{referrerId}/withdrawals/{withdrawalId}",
+  region:    FUNCTIONS_REGION,
+}, async (event) => {
+  const w = event.data?.data();
+  const referrerId = event.params.referrerId;
+  const withdrawalId = event.params.withdrawalId;
+  if (!w || w.status !== "pending") return;
+
+  if (!w.bank?.accountNumber || !w.bank?.bankCode) {
+    await event.data.ref.update({
+      status: "rejected",
+      rejectedAt: FieldValue.serverTimestamp(),
+      rejectReason: "No bank details",
+    });
+    return;
+  }
+
+  // Validate balance
+  const refSnap = await db.doc(`referrers/${referrerId}`).get();
+  if (!refSnap.exists) return;
+  const referrer = refSnap.data();
+  if (referrer.balance < w.amount) {
+    await event.data.ref.update({
+      status: "rejected",
+      rejectedAt: FieldValue.serverTimestamp(),
+      rejectReason: "Insufficient balance",
+    });
+    return;
+  }
+
+  // Atomically deduct balance
+  await db.doc(`referrers/${referrerId}`).update({
+    balance: FieldValue.increment(-w.amount),
+  });
+
+  try {
+    const recipientRes = await paystackPost("/transferrecipient", {
+      type: "nuban",
+      name: w.bank.accountName,
+      account_number: w.bank.accountNumber,
+      bank_code: w.bank.bankCode,
+      currency: "NGN",
+    });
+    if (!recipientRes.status) throw new Error(recipientRes.message);
+
+    const transferRes = await paystackPost("/transfer", {
+      source: "balance",
+      reason: `Storvix referral payout — ${referrerId.slice(0,8)}`,
+      amount: w.amount * 100,
+      recipient: recipientRes.data.recipient_code,
+    });
+    if (!transferRes.status) throw new Error(transferRes.message);
+
+    await event.data.ref.update({
+      status: "paid",
+      paidAt: FieldValue.serverTimestamp(),
+      paystackTransferCode: transferRes.data?.transfer_code || "",
+    });
+    console.log(`[ref-withdraw] Paid ${referrerId.slice(0,8)} ₦${w.amount}`);
+  } catch (err) {
+    console.error(`[ref-withdraw] Failed:`, err.message);
+    // Refund balance
+    await db.doc(`referrers/${referrerId}`).update({
+      balance: FieldValue.increment(w.amount),
+    });
+    await event.data.ref.update({
+      status: "rejected",
+      rejectedAt: FieldValue.serverTimestamp(),
+      rejectReason: err.message,
+    });
+  }
 });

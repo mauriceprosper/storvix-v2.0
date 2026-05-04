@@ -761,7 +761,15 @@ async function initiatePayment() {
   try {
     const ref = await addDoc(collection(db, "sellers", seller.id, "orders"), orderData);
     orderId = ref.id;
+
+    // Write a public lookup doc so /track.html can find this order by number
+    await setDoc(doc(db, "orderRefs", orderNumber), {
+      sellerId: seller.id,
+      orderId,
+      createdAt: serverTimestamp(),
+    });
   } catch (e) {
+    console.error("Order create failed:", e);
     toast("Failed to create order. Please try again.", "error");
     return;
   }
@@ -832,6 +840,20 @@ async function initiatePayment() {
             });
           }
 
+          // 5. Upsert customer record (email-keyed so duplicates merge)
+          // Use slugified email as ID — Firestore IDs can't have dots
+          const customerId = email.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 80) || `phone_${phone.replace(/\D/g,"")}`;
+          batch.set(doc(db, "sellers", seller.id, "customers", customerId), {
+            name, phone, email,
+            lastOrderAt:    serverTimestamp(),
+            lastOrderTotal: totals.total,
+            // Increment counters atomically (works even on first write)
+            orderCount:     increment(1),
+            totalSpent:     increment(totals.total),
+            // Set creation timestamp only on first write (won't overwrite)
+            createdAt:      serverTimestamp(),
+          }, { merge: true });
+
           await batch.commit();
           console.log(`[Storvix] Credited ₦${credit.toLocaleString()} to wallet for order ${orderNumber}`);
 
@@ -858,27 +880,46 @@ async function initiatePayment() {
       document.getElementById("checkoutModal").classList.remove("open");
       document.body.style.overflow = "";
 
-      // Brief success state, then redirect to tracking page
+      // Success state with track button + copy link
       const trackUrl = `${window.location.origin}/track.html?ref=${orderNumber}`;
       document.getElementById("storeStatePage").style.display = "";
       document.getElementById("storeStatePage").innerHTML = `
         <div class="store-state-page">
-          <div class="store-state-box">
+          <div class="store-state-box" style="max-width:480px">
             <div class="store-state-icon" style="animation:bounce .8s">🎉</div>
             <h2 class="store-state-title">Order Confirmed!</h2>
             <p class="store-state-text">
-              Thank you, ${name}! Redirecting you to your order tracker…
+              Thank you, ${name}! Your order <strong>${orderNumber}</strong> has been placed.
             </p>
-            <div style="margin-top:18px"><div class="spinner" style="width:24px;height:24px;border-width:2px;margin:0 auto"></div></div>
-            <p style="font-size:.8125rem;color:var(--text-muted);margin-top:14px">
-              <a href="${trackUrl}" style="color:var(--accent);font-weight:600">Tap here if not redirected →</a>
-            </p>
+
+            <div style="margin:24px 0;padding:16px;background:rgba(102,71,255,0.06);border:1px dashed rgba(102,71,255,0.3);border-radius:12px">
+              <div style="font-size:.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tracking link</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" readonly id="trackLinkInput" value="${trackUrl}"
+                       style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.8125rem;background:#fff;font-family:monospace;min-width:0">
+                <button onclick="copyTrackLink(this)" style="padding:10px 14px;background:var(--accent,#6647FF);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.875rem;white-space:nowrap">Copy</button>
+              </div>
+              <p style="font-size:.6875rem;color:var(--text-muted);margin-top:8px">Save this link to check your order status anytime.</p>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+              <a href="${trackUrl}" class="btn btn-primary" style="background:var(--accent,#6647FF);color:#fff">Track My Order →</a>
+              <button class="btn btn-secondary" onclick="location.reload()">Continue Shopping</button>
+            </div>
           </div>
         </div>
-        <style>@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}</style>`;
-
-      // Redirect after 1.5 seconds (gives the success bounce time + lets the batch commit)
-      setTimeout(() => { window.location.href = trackUrl; }, 1500);
+        <style>@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}</style>
+        <script>
+          window.copyTrackLink = function(btn) {
+            const inp = document.getElementById("trackLinkInput");
+            navigator.clipboard.writeText(inp.value).then(() => {
+              const orig = btn.textContent;
+              btn.textContent = "✓ Copied";
+              btn.style.background = "#10B981";
+              setTimeout(() => { btn.textContent = orig; btn.style.background = ""; }, 1800);
+            });
+          };
+        </script>`;
     },
     onClose: function () {
       // Payment cancelled — remove pending order (fire and forget)

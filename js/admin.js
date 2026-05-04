@@ -85,7 +85,9 @@ document.querySelectorAll(".admin-nav-item[data-tab]").forEach(item => {
 
 // ── Load Data ─────────────────────────────────────────────
 async function loadAll() {
-  await Promise.all([loadSellers(), loadOrders(), loadWithdrawals()]);
+  // Sellers must load first so loadOrders fallback can iterate them
+  await loadSellers();
+  await Promise.all([loadOrders(), loadWithdrawals()]);
   renderOverview();
 }
 
@@ -97,10 +99,32 @@ async function loadSellers() {
 
 async function loadOrders() {
   try {
+    // Primary: collectionGroup query with orderBy (needs index, but auto-prompts)
     const snap = await getDocs(query(collectionGroup(db, "orders"), orderBy("createdAt", "desc"), limit(100)));
     allOrders = snap.docs.map(d => ({ id: d.id, sellerId: d.ref.parent.parent.id, ...d.data() }));
-  } catch {
-    allOrders = [];
+    console.log(`[admin] Loaded ${allOrders.length} orders`);
+  } catch (err) {
+    console.warn("Orders load with orderBy failed:", err.message);
+    if (err.message?.includes("index")) {
+      console.warn("👉 Click the link above to create the required Firestore index, then refresh.");
+    }
+    // Fallback: load orders for each seller individually
+    try {
+      console.log("[admin] Falling back to per-seller order loading…");
+      const orderPromises = allSellers.map(s =>
+        getDocs(query(collection(db, "sellers", s.id, "orders"), orderBy("createdAt", "desc"), limit(50)))
+          .then(snap => snap.docs.map(d => ({ id: d.id, sellerId: s.id, ...d.data() })))
+          .catch(() => [])
+      );
+      const results = await Promise.all(orderPromises);
+      allOrders = results.flat().sort((a, b) =>
+        (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+      );
+      console.log(`[admin] Fallback loaded ${allOrders.length} orders`);
+    } catch (e2) {
+      console.error("[admin] Fallback also failed:", e2.message);
+      allOrders = [];
+    }
   }
   renderOrders();
 }

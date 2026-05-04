@@ -481,6 +481,7 @@ async function init() {
               batch.update(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
                 used: true, usedAt: serverTimestamp(),
                 usedBy: { name, phone, email, paymentRef: response.reference },
+                paidAt: serverTimestamp(),
               });
             } else {
               batch.update(doc(db, "sellers", sellerData.id, "paymentLinks", linkDoc.id), {
@@ -489,21 +490,24 @@ async function init() {
               });
             }
 
+            // 5. Public orderRefs lookup (for /track.html)
+            batch.set(doc(db, "orderRefs", orderNumber), {
+              sellerId: sellerData.id,
+              orderId:  orderRef.id,
+              createdAt: serverTimestamp(),
+            });
+
             await batch.commit();
             console.log(`[Storvix] Payment recorded — order ${orderNumber}, +₦${linkDoc.amount} to wallet`);
-
-            // Redirect to tracking page after brief delay
-            setTimeout(() => {
-              window.location.href = `${window.location.origin}/track.html?ref=${orderNumber}`;
-            }, 1500);
+            window._lastTrackUrl = `${window.location.origin}/track.html?ref=${orderNumber}`;
           } catch (err) {
             console.error("Post-payment update failed:", err);
-            // Still show success — payment was made; just couldn't fully record
           }
         })();
 
-        showState("🎉", "Payment Successful!",
-          `Thank you, ${name}. Your payment of ${fmt(linkDoc.amount)} to ${sellerData.storeName} has been received. Redirecting…`);
+        // Show success state with track button + copy link (no auto-redirect)
+        const trackUrl = `${window.location.origin}/track.html?ref=${orderNumber}`;
+        showSuccessWithTrackLink(name, sellerData.storeName, linkDoc.amount, trackUrl);
       },
       onClose: function () {
         toast("Payment cancelled.", "info");
@@ -515,6 +519,43 @@ async function init() {
     handler.openIframe();
   });
 }
+
+function showSuccessWithTrackLink(buyerName, storeName, amount, trackUrl) {
+  document.getElementById("pageLoader").style.display = "none";
+  document.getElementById("payPage").style.display = "none";
+  const el = document.getElementById("payStatePage");
+  el.style.display = "";
+  document.getElementById("payStateIcon").textContent = "🎉";
+  document.getElementById("payStateTitle").textContent = "Payment Successful!";
+  document.getElementById("payStateText").innerHTML =
+    `Thank you, ${buyerName}. Your payment of ${fmt(amount)} to <strong>${storeName}</strong> has been received.`;
+
+  document.getElementById("payStateActions").innerHTML = `
+    <div style="margin:18px 0;padding:14px;background:rgba(0,102,255,0.06);border:1px dashed rgba(0,102,255,0.3);border-radius:10px">
+      <div style="font-size:.7rem;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tracking link</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" readonly id="trackLinkInputPay" value="${trackUrl}"
+               style="flex:1;padding:10px 12px;border:1px solid #D1D5DB;border-radius:8px;font-size:.8125rem;background:#fff;font-family:monospace;min-width:0">
+        <button onclick="copyPayTrackLink(this)"
+                style="padding:10px 14px;background:#0066FF;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.8125rem;white-space:nowrap">Copy</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <a href="${trackUrl}" class="pay-btn" style="text-decoration:none;display:inline-flex;width:auto;padding:12px 20px">Track My Order →</a>
+      <a href="/" class="pay-btn" style="text-decoration:none;display:inline-flex;width:auto;padding:12px 20px;background:#F3F4F6;color:#374151">Done</a>
+    </div>
+  `;
+}
+
+window.copyPayTrackLink = function(btn) {
+  const inp = document.getElementById("trackLinkInputPay");
+  navigator.clipboard.writeText(inp.value).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "✓ Copied";
+    btn.style.background = "#10B981";
+    setTimeout(() => { btn.textContent = orig; btn.style.background = "#0066FF"; }, 1800);
+  });
+};
 
 function showState(icon, title, text, actions) {
   document.getElementById("pageLoader").style.display = "none";

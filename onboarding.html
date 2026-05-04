@@ -241,6 +241,19 @@
         </div>
       </div>
 
+      <div style="margin-top:18px">
+        <label style="font-size:.8125rem;font-weight:600;color:var(--text);display:block;margin-bottom:6px">
+          Referral code <span style="color:var(--text-muted);font-weight:400">(optional)</span>
+        </label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="referralCodeInput" maxlength="20"
+                 style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:inherit;text-transform:uppercase;letter-spacing:.04em"
+                 placeholder="Enter code if you were referred">
+          <button type="button" class="btn btn-secondary" id="checkReferralBtn" style="white-space:nowrap">Check</button>
+        </div>
+        <div id="referralCheckResult" style="font-size:.8125rem;margin-top:6px"></div>
+      </div>
+
       <div class="onboard-actions" style="margin-top:32px">
         <button class="btn btn-secondary" id="step5Back">← Back</button>
         <button class="btn btn-primary btn-lg" id="goToDashboard">

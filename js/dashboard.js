@@ -7,8 +7,8 @@ import {
   listenOrders, updateOrderStatus, getProducts, addProduct, updateProduct, deleteProduct,
   getCustomers, getDiscounts, getPaymentLinks, getTransactions, getTestimonials,
   uploadImage, requestWithdrawal, logOut,
-  doc, getDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp,
-  onSnapshot, callCreatePaymentLink, writeBatch,
+  doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, collection, serverTimestamp,
+  onSnapshot, callCreatePaymentLink, callVerifyBankAccount, writeBatch,
   query, where, orderBy, limit,
 } from "./firebase-config.js";
 import {
@@ -953,21 +953,78 @@ function renderPayLinks() {
       <h4>No payment links yet</h4><p>Create a link and share it with customers.</p></div>`;
     return;
   }
-  wrap.innerHTML = allPayLinks.map(pl => {
+
+  // Quick stats
+  const paid     = allPayLinks.filter(pl => pl.used || (pl.usageCount || 0) > 0);
+  const totalCollected = paid.reduce((s, pl) => s + (pl.amount * (pl.oneTime ? 1 : (pl.usageCount || 0))), 0);
+  const statsHtml = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+      <div class="card card-sm"><div style="font-size:.75rem;color:var(--text-muted);font-weight:500">Total Links</div><div style="font-size:1.5rem;font-weight:700">${allPayLinks.length}</div></div>
+      <div class="card card-sm"><div style="font-size:.75rem;color:var(--text-muted);font-weight:500">Used</div><div style="font-size:1.5rem;font-weight:700;color:var(--success,#10B981)">${paid.length}</div></div>
+      <div class="card card-sm"><div style="font-size:.75rem;color:var(--text-muted);font-weight:500">Collected</div><div style="font-size:1.5rem;font-weight:700">${fmt(totalCollected)}</div></div>
+    </div>`;
+
+  const linksHtml = allPayLinks.map(pl => {
     const link = `${window.location.origin}/pay.html?ref=${pl.ref}`;
+    const isExpired = pl.expiryDate && new Date(pl.expiryDate) < new Date();
+
+    let status, statusColor;
+    if (pl.oneTime && pl.used) {
+      status = "Paid";
+      statusColor = "badge-green";
+    } else if (isExpired) {
+      status = "Expired";
+      statusColor = "badge-gray";
+    } else if (!pl.oneTime && (pl.usageCount || 0) > 0) {
+      status = `${pl.usageCount} payments`;
+      statusColor = "badge-blue";
+    } else {
+      status = "Awaiting payment";
+      statusColor = "badge-orange";
+    }
+
+    const paidByHtml = pl.usedBy ? `
+      <div style="margin-top:10px;padding:10px 12px;background:rgba(16,185,129,0.06);border-radius:8px;font-size:.8125rem">
+        <div style="font-weight:600;color:#047857;margin-bottom:2px">✓ Paid by</div>
+        <div>${escapeHtml(pl.usedBy.name || "—")} · ${escapeHtml(pl.usedBy.phone || "—")}</div>
+        <div style="color:var(--text-muted);font-family:monospace;font-size:.75rem;margin-top:2px">Ref: ${escapeHtml(pl.usedBy.paymentRef || "—")}</div>
+      </div>` : "";
+
     return `
-      <div class="card card-sm" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <div style="font-weight:700">${pl.description || "—"}</div>
-          <div style="font-size:.875rem;color:var(--text-muted)">${fmt(pl.amount)} · ${pl.oneTime ? "One-time" : "Reusable"}</div>
+      <div class="card" style="margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="flex:1;min-width:200px">
+            <div style="font-weight:700;font-size:1rem">${escapeHtml(pl.description || "—")}</div>
+            <div style="font-size:.875rem;color:var(--text-muted);margin-top:2px">
+              ${fmt(pl.amount)} · ${pl.oneTime ? "One-time" : "Reusable"}
+              ${pl.refHint ? ` · ${escapeHtml(pl.refHint)}` : ""}
+              ${pl.expiryDate ? ` · Expires ${fmtDate(pl.expiryDate)}` : ""}
+            </div>
+            ${pl.notes ? `<div style="font-size:.8125rem;color:var(--text-muted);margin-top:6px;font-style:italic">"${escapeHtml(pl.notes)}"</div>` : ""}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="badge ${statusColor}">${status}</span>
+            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${link}','Link copied!')">Copy Link</button>
+            <button class="btn btn-sm btn-danger" onclick="deletePayLink('${pl.id}')" title="Delete">×</button>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${pl.used ? '<span class="badge badge-gray">Used</span>' : '<span class="badge badge-green">Active</span>'}
-          <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${link}','Link copied!')">Copy Link</button>
-        </div>
+        ${paidByHtml}
       </div>`;
   }).join("");
+
+  wrap.innerHTML = statsHtml + linksHtml;
 }
+
+window.deletePayLink = async (linkId) => {
+  if (!confirm("Delete this payment link? This cannot be undone.")) return;
+  try {
+    await deleteDoc(doc(db, "sellers", seller.id, "paymentLinks", linkId));
+    toast("Link deleted.", "success");
+    loadPayLinks(seller.id);
+  } catch (e) {
+    toast("Failed: " + e.message, "error");
+  }
+};
 
 document.getElementById("createPayLinkBtn")?.addEventListener("click", () => {
   if (!canAccess(seller, "paymentLinks")) { toast(UPGRADE_MESSAGES.paymentLinks(), "info"); return; }
@@ -1519,3 +1576,227 @@ async function markAllRead() {
 }
 document.getElementById("markAllReadBtn")?.addEventListener("click", markAllRead);
 document.getElementById("inboxMarkAllReadBtn")?.addEventListener("click", markAllRead);
+
+// ═════════════════════════════════════════════════════════════
+//  BANK ACCOUNT EDITING (Settings tab)
+// ═════════════════════════════════════════════════════════════
+let _bankVerifiedData = null;
+
+function initBankSection() {
+  // Populate bank dropdown
+  const sel = document.getElementById("bankNameSelect");
+  if (sel && !sel.dataset.populated) {
+    NIGERIAN_BANKS.forEach(b => {
+      const opt = document.createElement("option");
+      opt.value = b.code;
+      opt.dataset.name = b.name;
+      opt.textContent = b.name;
+      sel.appendChild(opt);
+    });
+    sel.dataset.populated = "1";
+  }
+
+  // Show current bank or edit form
+  const currentBox = document.getElementById("bankCurrent");
+  const editForm   = document.getElementById("bankEditForm");
+  if (seller?.bank?.accountNumber) {
+    currentBox.style.display = "";
+    editForm.style.display = "none";
+    document.getElementById("bankCurrentText").innerHTML =
+      `<div>${escapeHtml(seller.bank.bankName)}</div>
+       <div style="font-family:monospace;color:var(--text-muted);font-size:.875rem">${escapeHtml(seller.bank.accountNumber)} · ${escapeHtml(seller.bank.accountName || "—")}</div>`;
+  } else {
+    currentBox.style.display = "none";
+    editForm.style.display = "";
+  }
+}
+
+document.getElementById("bankEditBtn")?.addEventListener("click", () => {
+  document.getElementById("bankCurrent").style.display = "none";
+  document.getElementById("bankEditForm").style.display = "";
+  document.getElementById("bankCancelEditBtn").style.display = "";
+});
+
+document.getElementById("bankCancelEditBtn")?.addEventListener("click", () => {
+  document.getElementById("bankEditForm").style.display = "none";
+  document.getElementById("bankCurrent").style.display = "";
+  document.getElementById("bankVerifyResult").style.display = "none";
+  document.getElementById("bankConfirmBtn").style.display = "none";
+  _bankVerifiedData = null;
+});
+
+document.getElementById("bankVerifyBtn")?.addEventListener("click", async () => {
+  const sel = document.getElementById("bankNameSelect");
+  const acctNum = document.getElementById("bankAcctNumber").value.trim();
+  const bankCode = sel.value;
+  const bankName = sel.options[sel.selectedIndex]?.dataset.name;
+  const result = document.getElementById("bankVerifyResult");
+  const confirmBtn = document.getElementById("bankConfirmBtn");
+  const verifyBtn  = document.getElementById("bankVerifyBtn");
+
+  if (!bankCode) { toast("Select your bank.", "error"); return; }
+  if (!/^\d{10}$/.test(acctNum)) { toast("Account number must be exactly 10 digits.", "error"); return; }
+
+  verifyBtn.disabled = true;
+  verifyBtn.textContent = "Verifying…";
+  result.style.display = "none";
+  confirmBtn.style.display = "none";
+
+  try {
+    const res = await callVerifyBankAccount({ bankCode, accountNumber: acctNum });
+    const accountName = res.data?.accountName || res.data?.account_name;
+    if (!accountName) throw new Error("No account name returned");
+
+    _bankVerifiedData = { bankCode, bankName, accountNumber: acctNum, accountName };
+
+    result.style.display = "";
+    result.style.background = "rgba(16,185,129,0.08)";
+    result.style.border = "1px solid rgba(16,185,129,0.3)";
+    result.innerHTML = `
+      <div style="font-size:.75rem;color:#047857;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">✓ Verified</div>
+      <div style="font-weight:700;font-size:1.0625rem">${escapeHtml(accountName)}</div>
+      <div style="font-size:.875rem;color:var(--text-muted);margin-top:2px">${escapeHtml(bankName)} · ${escapeHtml(acctNum)}</div>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px">Confirm this is correct, then save.</div>
+    `;
+    confirmBtn.style.display = "";
+  } catch (err) {
+    result.style.display = "";
+    result.style.background = "rgba(239,68,68,0.08)";
+    result.style.border = "1px solid rgba(239,68,68,0.3)";
+    result.innerHTML = `<div style="color:#B91C1C;font-weight:600">✗ ${err.message || "Could not verify"}</div>
+      <div style="font-size:.8125rem;color:var(--text-muted);margin-top:4px">Check the account number and try again.</div>`;
+    _bankVerifiedData = null;
+  }
+
+  verifyBtn.disabled = false;
+  verifyBtn.textContent = "Verify Account";
+});
+
+document.getElementById("bankConfirmBtn")?.addEventListener("click", async () => {
+  if (!_bankVerifiedData) { toast("Verify the account first.", "error"); return; }
+  const btn = document.getElementById("bankConfirmBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await updateSeller(seller.id, {
+      bank: _bankVerifiedData,
+      bankVerified: true,
+      bankUpdatedAt: serverTimestamp(),
+    });
+    seller.bank = _bankVerifiedData;
+    seller.bankVerified = true;
+    toast("Bank account saved!", "success");
+    initBankSection();
+    // Update wallet bank info display
+    const wbi = document.getElementById("withdrawBankInfo");
+    if (wbi) wbi.innerHTML = `${_bankVerifiedData.bankName}<br><span style="font-size:.875rem;color:var(--text-muted)">${_bankVerifiedData.accountNumber} · ${_bankVerifiedData.accountName}</span>`;
+  } catch (e) {
+    toast("Save failed: " + e.message, "error");
+  }
+  btn.disabled = false; btn.textContent = "Confirm & Save";
+});
+
+// Initialize bank section when settings tab is opened
+const _origSwitchTab = window.switchTab;
+window.switchTab = function(tab) {
+  _origSwitchTab(tab);
+  if (tab === "settings") initBankSection();
+};
+
+// ═════════════════════════════════════════════════════════════
+//  REFER & EARN — seller's own referral code + link
+// ═════════════════════════════════════════════════════════════
+async function initReferralSection() {
+  if (!seller) return;
+
+  let code = seller.referralCode;
+
+  // First time: generate from store name
+  if (!code) {
+    code = await generateReferralCode(seller.storeName || seller.email || "STORE");
+    try {
+      // Save the code on seller doc + claim it in referralCodes
+      await Promise.all([
+        updateSeller(seller.id, { referralCode: code }),
+        setDoc(doc(db, "referralCodes", code), {
+          code,
+          ownerType: "seller",
+          ownerId:   seller.id,
+          ownerName: seller.storeName || "",
+          createdAt: serverTimestamp(),
+        }),
+      ]);
+      seller.referralCode = code;
+    } catch (e) {
+      console.warn("Code claim failed (might be taken):", e);
+      // Try with a numeric suffix
+      code = code + Math.floor(Math.random() * 99);
+      await Promise.all([
+        updateSeller(seller.id, { referralCode: code }),
+        setDoc(doc(db, "referralCodes", code), {
+          code,
+          ownerType: "seller",
+          ownerId:   seller.id,
+          ownerName: seller.storeName || "",
+          createdAt: serverTimestamp(),
+        }),
+      ]);
+      seller.referralCode = code;
+    }
+  }
+
+  // Populate UI
+  document.getElementById("myReferralCode") && (document.getElementById("myReferralCode").textContent = code);
+  document.getElementById("myReferralLink") && (document.getElementById("myReferralLink").value =
+    `${window.location.origin}/onboarding.html?ref=${code}`);
+  document.getElementById("referralEarnedDisplay") && (document.getElementById("referralEarnedDisplay").textContent =
+    fmt(seller.referralEarned || 0));
+  document.getElementById("referralCountDisplay") && (document.getElementById("referralCountDisplay").textContent =
+    seller.referralCount || 0);
+}
+
+async function generateReferralCode(seedText) {
+  // Take first 6 alphanumeric chars of name, uppercase
+  const base = (seedText || "STORE")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase()
+    .slice(0, 6) || "STORE";
+
+  // Try base first, then base+1, base+2, etc until free
+  for (let i = 0; i < 100; i++) {
+    const candidate = i === 0 ? base : `${base}${i}`;
+    try {
+      const snap = await getDoc(doc(db, "referralCodes", candidate));
+      if (!snap.exists()) return candidate;
+    } catch { /* continue */ }
+  }
+  // Fallback: random suffix
+  return `${base}${Math.floor(Math.random() * 9999)}`;
+}
+
+document.getElementById("copyReferralCodeBtn")?.addEventListener("click", () => {
+  const code = document.getElementById("myReferralCode")?.textContent;
+  if (!code || code === "—") return;
+  navigator.clipboard.writeText(code).then(() => toast("Code copied!", "success"));
+});
+
+document.getElementById("copyReferralLinkBtn")?.addEventListener("click", (e) => {
+  const link = document.getElementById("myReferralLink")?.value;
+  if (!link) return;
+  navigator.clipboard.writeText(link).then(() => {
+    const orig = e.target.textContent;
+    e.target.textContent = "✓ Copied";
+    setTimeout(() => e.target.textContent = orig, 1500);
+  });
+});
+
+// Init when refer tab opens
+const _origSwitchTab2 = window.switchTab;
+window.switchTab = function(tab) {
+  _origSwitchTab2(tab);
+  if (tab === "refer") initReferralSection();
+};
+
+// Also init on load if the deep-linked tab is refer
+if (window.location.search.includes("tab=refer")) {
+  setTimeout(() => initReferralSection(), 1000);
+}

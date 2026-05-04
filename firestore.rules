@@ -54,7 +54,10 @@ service cloud.firestore {
 
       // ── Customers ─────────────────────────────────────
       match /customers/{customerId} {
-        allow read, write: if isOwner(sellerId) || isAdmin();
+        // Owner/admin full access. Public can create or update via order checkout.
+        allow read: if isOwner(sellerId) || isAdmin();
+        allow create, update: if true;
+        allow delete: if isOwner(sellerId) || isAdmin();
       }
 
       // ── Discounts ─────────────────────────────────────
@@ -115,6 +118,50 @@ service cloud.firestore {
     // ── Admin Broadcasts (audit log of admin messages) ───
     match /adminBroadcasts/{broadcastId} {
       allow read, write: if isAdmin();
+    }
+
+    // ── Order refs (public lookup table for /track.html) ─
+    match /orderRefs/{orderNumber} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Referral Codes (public lookup table) ─────────────
+    match /referralCodes/{code} {
+      // Anyone can check if a code exists (for signup validation)
+      allow read: if true;
+      // Authenticated users can claim a code (one-per-user enforced client-side)
+      allow create: if isSignedIn();
+      allow update: if isAdmin()
+        || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ── Referrers (non-seller affiliate accounts) ────────
+    match /referrers/{referrerId} {
+      // Owner reads/updates own profile only; admins read all
+      allow read:   if isAdmin() || (isSignedIn() && referrerId == request.auth.uid);
+      allow create: if isSignedIn() && referrerId == request.auth.uid;
+      // Owner can update bank details only; commissions are written by Cloud Functions (admin SDK)
+      allow update: if isAdmin()
+        || (isSignedIn() && referrerId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['bank', 'bankVerified', 'name', 'phone', 'updatedAt']));
+      allow delete: if isAdmin();
+
+      // Earnings ledger (one doc per referred seller; written by Cloud Functions)
+      match /earnings/{earningId} {
+        allow read: if isAdmin() || (isSignedIn() && referrerId == request.auth.uid);
+        allow write: if isAdmin();
+      }
+
+      // Withdrawal requests for referrers
+      match /withdrawals/{withdrawalId} {
+        allow read: if isAdmin() || (isSignedIn() && referrerId == request.auth.uid);
+        allow create: if isSignedIn() && referrerId == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
     }
 
     // ── Cart Sessions (abandoned cart tracking) ──────────
