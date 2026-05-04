@@ -192,27 +192,37 @@
 
     <!-- ── STEP 5: Go Live ── -->
     <div class="onboard-step" id="step5">
-      <h1 class="onboard-step-title">🎉 You're almost live!</h1>
-      <p class="onboard-step-sub">Review your setup and launch your store.</p>
+      <h1 class="onboard-step-title">🎉 Almost there — one quick step</h1>
+      <p class="onboard-step-sub">Pay your starter pack to launch your store with full Pro access.</p>
 
       <div class="store-url-copy">
         <a href="#" id="storeLiveUrl" target="_blank">your-store.storvix.ng</a>
         <button class="btn btn-sm btn-secondary" id="copyStoreUrl">Copy</button>
       </div>
 
+      <!-- Starter pack offer card -->
+      <div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,#0066FF 0%,#4F2FE8 100%);color:white;border-radius:16px;text-align:center">
+        <div style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85;margin-bottom:8px">Starter Pack</div>
+        <div style="font-size:2.5rem;font-weight:800;letter-spacing:-.02em;line-height:1;margin-bottom:6px">₦1,000</div>
+        <div style="font-size:.9375rem;opacity:.9;margin-bottom:18px">30 days · all Pro features unlocked</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;text-align:left;font-size:.8125rem;background:rgba(255,255,255,0.1);padding:14px;border-radius:10px;margin-bottom:4px">
+          <div>✓ Unlimited products</div>
+          <div>✓ Custom domain</div>
+          <div>✓ Coupons & discounts</div>
+          <div>✓ Payment links</div>
+          <div>✓ Cart tracking</div>
+          <div>✓ Sales analytics</div>
+          <div>✓ Same-day payouts</div>
+          <div>✓ Abandoned cart</div>
+        </div>
+      </div>
+
       <div class="golive-checklist">
         <div class="golive-item">
           <div class="golive-check">✓</div>
           <div class="golive-item-text">
-            <h5>Store is live</h5>
-            <p>Buyers can visit your store right now.</p>
-          </div>
-        </div>
-        <div class="golive-item">
-          <div class="golive-check">✓</div>
-          <div class="golive-item-text">
-            <h5>Paystack payments set up</h5>
-            <p>Accept card, transfer, and USSD payments.</p>
+            <h5>Store is configured</h5>
+            <p>Ready to receive your first order.</p>
           </div>
         </div>
         <div class="golive-item" id="bankVerifiedItem">
@@ -225,8 +235,8 @@
         <div class="golive-item">
           <div class="golive-check" style="background:var(--amber-light);color:var(--amber)">⚡</div>
           <div class="golive-item-text">
-            <h5>14-day free trial active</h5>
-            <p>Full features unlocked. No charge until your trial ends.</p>
+            <h5>After 30 days</h5>
+            <p>Choose a plan to keep your store live (₦2,100 – ₦15,600/month).</p>
           </div>
         </div>
       </div>
@@ -234,13 +244,20 @@
       <div class="onboard-actions" style="margin-top:32px">
         <button class="btn btn-secondary" id="step5Back">← Back</button>
         <button class="btn btn-primary btn-lg" id="goToDashboard">
-          Go to Dashboard →
+          Pay ₦1,000 & Launch Store →
         </button>
       </div>
+
+      <p style="text-align:center;margin-top:14px;font-size:.75rem;color:var(--text-muted)">
+        🔒 Secured by Paystack · Card · Transfer · USSD
+      </p>
     </div>
 
   </div>
 </div>
+
+<!-- Paystack -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
 
 <script type="module" src="js/onboarding.js"></script>
 </body>

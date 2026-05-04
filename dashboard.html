@@ -714,7 +714,7 @@
 
 <!-- Payment Link Modal -->
 <div class="modal" id="payLinkModal">
-  <div class="modal-box modal-sm">
+  <div class="modal-box">
     <div class="modal-header">
       <h3 class="modal-title">Create Payment Link</h3>
       <div class="modal-close" onclick="closeModal('payLinkModal')">×</div>
@@ -722,20 +722,54 @@
     <form id="payLinkForm">
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="form-group">
-          <label class="form-label">Description *</label>
-          <input class="form-input" type="text" id="plDescription" placeholder="Custom suit deposit">
+          <label class="form-label">What is this payment for? *</label>
+          <input class="form-input" type="text" id="plDescription" placeholder="e.g. Custom suit deposit, Wedding cake order, Consultation fee" required>
+          <span class="form-hint">Customers will see this on the payment page.</span>
         </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Amount (₦) *</label>
+            <input class="form-input" type="number" id="plAmount" min="100" step="100" placeholder="5000" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expires (optional)</label>
+            <input class="form-input" type="date" id="plExpiry">
+          </div>
+        </div>
+
         <div class="form-group">
-          <label class="form-label">Amount (₦) *</label>
-          <input class="form-input" type="number" id="plAmount" min="100">
+          <label class="form-label">Customer reference / invoice number (optional)</label>
+          <input class="form-input" type="text" id="plRefHint" placeholder="INV-2024-001">
+          <span class="form-hint">For your records. Customers won't see this.</span>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Expiry date (optional)</label>
-          <input class="form-input" type="date" id="plExpiry">
+          <label class="form-label">Notes for customer (optional)</label>
+          <textarea class="form-input" id="plNotes" rows="2" placeholder="Any extra info, terms, or instructions"></textarea>
         </div>
+
+        <div style="background:rgba(0,102,255,0.04);border:1px dashed rgba(0,102,255,0.3);border-radius:10px;padding:14px">
+          <div style="font-weight:600;font-size:.875rem;margin-bottom:10px">Customer info to collect</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:.875rem">
+            <label style="display:flex;align-items:center;gap:8px;cursor:not-allowed;opacity:.7">
+              <input type="checkbox" checked disabled> Name (always required)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:not-allowed;opacity:.7">
+              <input type="checkbox" checked disabled> WhatsApp number (always required)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="plRequireEmail"> Require email
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="plRequireAddress"> Require delivery address
+            </label>
+          </div>
+        </div>
+
         <div class="toggle-wrap">
           <div class="toggle" id="plOneTimeToggle"></div>
-          <span class="toggle-label">One-time use (link expires after first payment)</span>
+          <span class="toggle-label">One-time use (link expires after first successful payment)</span>
         </div>
       </div>
       <div class="modal-footer">
@@ -782,6 +816,7 @@
   </div>
 </div>
 
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>

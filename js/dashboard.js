@@ -15,7 +15,7 @@ import {
   statusBadge, planBadge, openModal, closeModal, bindModalClose,
   NIGERIAN_BANKS, PRODUCT_CATEGORIES, readFileAsDataURL, debounce, normalisePhone,
 } from "./utils.js";
-import { PLANS, PAYSTACK_PUBLIC_KEY, PAYSTACK_PLAN_CODES, canAccess, isAtLimit, UPGRADE_MESSAGES } from "./plans.js";
+import { PLANS, PAYSTACK_PUBLIC_KEY, PAYSTACK_PLAN_CODES, canAccess, isAtLimit, UPGRADE_MESSAGES, getAccountStatus, STARTER_PACK } from "./plans.js";
 
 // ── Global State ─────────────────────────────────────────────
 let seller   = null;
@@ -66,12 +66,9 @@ function initUI() {
   document.getElementById("viewStoreQuick").href          = storeLink;
   document.getElementById("kpiProductsLimit").textContent = planInfo.products === Infinity ? "Unlimited" : `Limit: ${planInfo.products}`;
 
-  // Trial banner
-  if (seller.planStatus === "trial" && seller.trialEnd) {
-    const daysLeft = Math.max(0, Math.ceil((seller.trialEnd.toDate() - new Date()) / 86400000));
-    document.getElementById("trialBanner").style.display = "";
-    document.getElementById("trialDaysLeft").textContent = `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining`;
-  }
+  // Trial / Starter / Active subscription banner
+  const accountStatus = getAccountStatus(seller);
+  renderSubscriptionBanner(accountStatus);
 
   // Plan-locked nav items
   if (!canAccess(seller, "paymentLinks")) document.getElementById("navPaylinks")?.classList.add("text-muted");
@@ -115,6 +112,149 @@ function initUI() {
     catSel.appendChild(opt);
   });
 }
+
+// ── Subscription Banner ───────────────────────────────────────
+function renderSubscriptionBanner(status) {
+  const banner = document.getElementById("trialBanner");
+  if (!banner) return;
+
+  if (status.suspended) {
+    // Expired — must subscribe
+    banner.style.display = "";
+    banner.style.background = "#FEE2E2";
+    banner.style.borderColor = "#FCA5A5";
+    banner.innerHTML = `
+      <div style="flex:1">
+        <strong style="color:#991B1B">⏸️ ${status.reason}</strong>
+        <div style="font-size:.875rem;color:#7F1D1D;margin-top:2px">Your storefront is paused. Pick a plan to take orders again.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">Choose Plan</button>`;
+  } else if (status.reason === "starter") {
+    banner.style.display = "";
+    banner.style.background = "rgba(0,102,255,0.08)";
+    banner.style.borderColor = "rgba(0,102,255,0.25)";
+    const urgent = status.daysLeft <= 7;
+    banner.innerHTML = `
+      <div style="flex:1">
+        <strong style="color:${urgent ? "#B45309" : "#1D4ED8"}">${urgent ? "⚠️" : "🚀"} Starter Pack — ${status.daysLeft} day${status.daysLeft !== 1 ? "s" : ""} left</strong>
+        <div style="font-size:.875rem;color:var(--text-muted);margin-top:2px">All Pro features unlocked. After ${status.daysLeft} day${status.daysLeft !== 1 ? "s" : ""}, pick a plan to keep your store live.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">View Plans</button>`;
+  } else if (status.reason === "active" && status.daysLeft !== null && status.daysLeft <= 7) {
+    // Active but renewing soon
+    banner.style.display = "";
+    banner.style.background = "#FEF3C7";
+    banner.style.borderColor = "#FCD34D";
+    banner.innerHTML = `
+      <div style="flex:1">
+        <strong style="color:#92400E">📅 Subscription renews in ${status.daysLeft} day${status.daysLeft !== 1 ? "s" : ""}</strong>
+        <div style="font-size:.875rem;color:#78350F;margin-top:2px">${seller.autoRenew ? "Will auto-renew on your card" : "Renew manually to keep your store live"}</div>
+      </div>
+      ${seller.autoRenew ? "" : '<button class="btn btn-primary btn-sm" onclick="switchTab(\'billing\')">Renew Now</button>'}`;
+  } else if (status.reason === "trial") {
+    // Old-style trial
+    banner.style.display = "";
+    const daysLeft = Math.max(0, Math.ceil((seller.trialEnd?.toDate?.() - new Date()) / 86400000));
+    document.getElementById("trialDaysLeft") && (document.getElementById("trialDaysLeft").textContent = `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining`);
+  } else {
+    banner.style.display = "none";
+  }
+}
+
+// ── Subscribe to a plan (after starter or for renewal) ──────
+window.subscribeToPlan = (planId, billing) => {
+  const plan = PLANS[planId];
+  if (!plan) { toast("Invalid plan.", "error"); return; }
+  const amount = billing === "annual" ? plan.annual : plan.monthly;
+
+  if (!window.PaystackPop) {
+    toast("Payment library still loading — try again in a moment.", "error");
+    return;
+  }
+
+  // For real recurring subscription, use Paystack subscription API (needs Cloud Functions)
+  // For now: charge once + record + extend planExpiry
+  const handler = window.PaystackPop.setup({
+    key:      PAYSTACK_PUBLIC_KEY,
+    email:    seller.email,
+    amount:   amount * 100,
+    currency: "NGN",
+    ref:      `STX_SUB_${seller.id}_${Date.now()}`,
+    plan:     PAYSTACK_PLAN_CODES[planId]?.[billing] || undefined, // Triggers Paystack subscription if plan code is real
+    metadata: {
+      custom_fields: [
+        { display_name: "Type",      variable_name: "type",      value: "subscription" },
+        { display_name: "Plan",      variable_name: "plan",      value: planId },
+        { display_name: "Billing",   variable_name: "billing",   value: billing },
+        { display_name: "Seller ID", variable_name: "seller_id", value: seller.id },
+      ],
+    },
+    callback: function (response) {
+      // Background: extend planExpiry
+      (async () => {
+        try {
+          const days = billing === "annual" ? 365 : 30;
+          const expiry = new Date();
+          expiry.setDate(expiry.getDate() + days);
+
+          await updateSeller(seller.id, {
+            plan: planId,
+            billing,
+            planStatus: "active",
+            planExpiry: expiry,
+            lastPaymentRef: response.reference,
+            lastPaymentAt:  serverTimestamp(),
+          });
+          seller.plan = planId;
+          seller.billing = billing;
+          seller.planStatus = "active";
+          seller.planExpiry = { toDate: () => expiry };
+          toast(`Subscribed to ${plan.name}!`, "success");
+          setTimeout(() => location.reload(), 1500);
+        } catch (e) {
+          console.error("Subscription update failed:", e);
+          toast("Payment received — refresh to see new plan.", "success");
+        }
+      })();
+    },
+    onClose: function () {
+      toast("Subscription cancelled.", "info");
+    },
+  });
+
+  handler.openIframe();
+};
+
+// ── Quick re-pay starter (if expired but they want another month) ──
+window.repayStarter = () => {
+  if (!window.PaystackPop) { toast("Loading…", "error"); return; }
+  const handler = window.PaystackPop.setup({
+    key:      PAYSTACK_PUBLIC_KEY,
+    email:    seller.email,
+    amount:   STARTER_PACK.amount * 100,
+    currency: "NGN",
+    ref:      `STX_STARTER_${seller.id}_${Date.now()}`,
+    metadata: { custom_fields: [{ display_name: "Type", variable_name: "type", value: "starter_renewal" }] },
+    callback: function (response) {
+      (async () => {
+        try {
+          const expiry = new Date();
+          expiry.setDate(expiry.getDate() + STARTER_PACK.durationDays);
+          await updateSeller(seller.id, {
+            planStatus: "starter",
+            starterExpiry: expiry,
+            lastPaymentRef: response.reference,
+            lastPaymentAt: serverTimestamp(),
+          });
+          toast("Starter pack renewed!", "success");
+          setTimeout(() => location.reload(), 1500);
+        } catch (e) { console.error(e); toast("Refresh to see status.", "info"); }
+      })();
+    },
+    onClose: function () { toast("Cancelled.", "info"); },
+  });
+  handler.openIframe();
+};
 
 // ── Navigation ────────────────────────────────────────────────
 window.switchTab = function(tab) {
@@ -841,19 +981,44 @@ document.getElementById("plOneTimeToggle")?.addEventListener("click", () => {
 
 document.getElementById("payLinkForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const description = document.getElementById("plDescription").value.trim();
-  const amount      = parseFloat(document.getElementById("plAmount").value);
-  if (!description || !amount) { toast("Fill all fields.", "error"); return; }
+  const description    = document.getElementById("plDescription").value.trim();
+  const amount         = parseFloat(document.getElementById("plAmount").value);
+  const expiryDate     = document.getElementById("plExpiry").value || null;
+  const refHint        = document.getElementById("plRefHint")?.value.trim() || "";
+  const notes          = document.getElementById("plNotes")?.value.trim() || "";
+  const requireEmail   = document.getElementById("plRequireEmail")?.checked || false;
+  const requireAddress = document.getElementById("plRequireAddress")?.checked || false;
+
+  if (!description) { toast("Enter what this payment is for.", "error"); return; }
+  if (!amount || amount < 100) { toast("Amount must be at least ₦100.", "error"); return; }
 
   const btn = e.target.querySelector("button[type=submit]");
   btnLoading(btn, true, "Create Link");
   try {
-    const res = await callCreatePaymentLink({ description, amount, oneTime: payLinkOneTime, expiryDate: document.getElementById("plExpiry").value || null });
+    // Generate a unique ref
+    const ref = `PL${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+
+    await addDoc(collection(db, "sellers", seller.id, "paymentLinks"), {
+      ref,
+      description,
+      amount,
+      expiryDate,
+      refHint,
+      notes,
+      requireEmail,
+      requireAddress,
+      oneTime: payLinkOneTime,
+      used: false,
+      usageCount: 0,
+      createdAt: serverTimestamp(),
+    });
+
     toast("Payment link created!", "success");
     closeModal("payLinkModal");
     loadPayLinks(seller.id);
-  } catch {
-    toast("Failed to create link. Try again.", "error");
+  } catch (err) {
+    console.error("Pay link creation failed:", err);
+    toast("Failed to create link: " + err.message, "error");
   }
   btnLoading(btn, false, "Create Link");
 });

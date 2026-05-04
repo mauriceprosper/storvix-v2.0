@@ -13,7 +13,7 @@ import {
   calculateTotal, isValidPhone, isValidEmail, generateOrderNumber, shortRef,
   NIGERIAN_STATES,
 } from "./utils.js";
-import { PAYSTACK_PUBLIC_KEY } from "./plans.js";
+import { PAYSTACK_PUBLIC_KEY, getAccountStatus } from "./plans.js";
 
 // ── Detect Store Slug ──────────────────────────────────────────
 function getSlug() {
@@ -64,8 +64,12 @@ async function init() {
     showStatePage("🌴", "Store on Break", `${seller.storeName} is taking a short break. Check back soon!`);
     return;
   }
-  if (seller.planStatus === "expired" || seller.planStatus === "cancelled") {
-    showStatePage("⏸️", "Store Not Available", "This store's subscription has ended. Contact the seller directly.");
+
+  // Subscription / starter pack expiry check
+  const status = getAccountStatus(seller);
+  if (status.suspended) {
+    showStatePage("⏸️", "Store paused",
+      `${seller.storeName} is currently paused. The owner needs to renew their subscription to take orders again.`);
     return;
   }
 
@@ -854,33 +858,27 @@ async function initiatePayment() {
       document.getElementById("checkoutModal").classList.remove("open");
       document.body.style.overflow = "";
 
-      // Success message with track-order link (since WhatsApp may not fire)
+      // Brief success state, then redirect to tracking page
       const trackUrl = `${window.location.origin}/track.html?ref=${orderNumber}`;
       document.getElementById("storeStatePage").style.display = "";
       document.getElementById("storeStatePage").innerHTML = `
         <div class="store-state-page">
           <div class="store-state-box">
-            <div class="store-state-icon">🎉</div>
+            <div class="store-state-icon" style="animation:bounce .8s">🎉</div>
             <h2 class="store-state-title">Order Confirmed!</h2>
             <p class="store-state-text">
-              Thank you, ${name}! Your order <strong>${orderNumber}</strong> has been placed.
+              Thank you, ${name}! Redirecting you to your order tracker…
             </p>
-
-            <div style="margin:24px 0;padding:18px;background:rgba(102,71,255,0.06);border:1px solid rgba(102,71,255,0.2);border-radius:12px;text-align:left">
-              <div style="font-size:.8rem;color:var(--text-muted);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Track your order</div>
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="text" readonly value="${trackUrl}" id="trackLinkInput" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.875rem;background:#fff;font-family:monospace">
-                <button onclick="navigator.clipboard.writeText(document.getElementById('trackLinkInput').value).then(()=>this.textContent='✓')" style="padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.875rem">Copy</button>
-              </div>
-              <p style="font-size:.75rem;color:var(--text-muted);margin-top:10px">Save this link to check your order status anytime.</p>
-            </div>
-
-            <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
-              <a href="${trackUrl}" class="btn btn-primary">Track Order →</a>
-              <button class="btn btn-secondary" onclick="location.reload()">Continue Shopping</button>
-            </div>
+            <div style="margin-top:18px"><div class="spinner" style="width:24px;height:24px;border-width:2px;margin:0 auto"></div></div>
+            <p style="font-size:.8125rem;color:var(--text-muted);margin-top:14px">
+              <a href="${trackUrl}" style="color:var(--accent);font-weight:600">Tap here if not redirected →</a>
+            </p>
           </div>
-        </div>`;
+        </div>
+        <style>@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}</style>`;
+
+      // Redirect after 1.5 seconds (gives the success bounce time + lets the batch commit)
+      setTimeout(() => { window.location.href = trackUrl; }, 1500);
     },
     onClose: function () {
       // Payment cancelled — remove pending order (fire and forget)

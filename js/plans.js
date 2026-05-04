@@ -12,7 +12,7 @@
 export const TEST_MODE = true;
 
 const PAYSTACK_KEYS = {
-  test: "pk_test_3b8fa7936778cc23dbda491c5c5086d5bff41a56",  // Replace with your actual test pk
+  test: "pk_test_3eb7b7068e4cd9013af8b40db9e10f3537ef0d50",  // Replace with your actual test pk
   live: "pk_live_51a8f2a4d502029c54e9141167aff10daf1e384b",
 };
 
@@ -105,13 +105,72 @@ export const PLANS = {
   },
 };
 
+// ── Starter Pack (compulsory new-seller fee) ──────────────────
+export const STARTER_PACK = {
+  amount:    1000,                      // ₦1,000 one-time
+  durationDays: 30,                     // 30 days of full Pro access
+  name:      "Starter Pack",
+  features:  "all",                     // all Pro features unlocked
+};
+
 // ── Plan Access Check ──────────────────────────────────────────
 export function canAccess(seller, feature) {
   if (!seller) return false;
   const status = seller.planStatus;
+
+  // Starter pack: full Pro features for 30 days
+  if (status === "starter") {
+    // Check if starter still valid
+    const expiry = seller.starterExpiry?.toDate?.() || (seller.starterExpiry ? new Date(seller.starterExpiry) : null);
+    if (expiry && expiry > new Date()) {
+      return !!PLANS.pro.features[feature];
+    }
+    return false; // Expired starter — needs subscription
+  }
+
   if (!["trial", "active", "grace"].includes(status)) return false;
   const plan = PLANS[seller.plan] || PLANS.lite;
   return !!plan.features[feature];
+}
+
+// ── Suspension Check (for storefront + dashboard gating) ──────
+// Returns: { suspended: bool, reason: string, daysLeft: number|null }
+export function getAccountStatus(seller) {
+  if (!seller) return { suspended: true, reason: "No account", daysLeft: null };
+  if (seller.suspended) return { suspended: true, reason: "Account suspended by admin", daysLeft: null };
+
+  const status = seller.planStatus;
+  const now = new Date();
+
+  // Starter pack
+  if (status === "starter") {
+    const expiry = seller.starterExpiry?.toDate?.() || (seller.starterExpiry ? new Date(seller.starterExpiry) : null);
+    if (!expiry) return { suspended: true, reason: "Invalid starter pack", daysLeft: null };
+    const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 0) {
+      return { suspended: true, reason: "Starter pack expired — pick a plan to continue", daysLeft: 0 };
+    }
+    return { suspended: false, reason: "starter", daysLeft };
+  }
+
+  // Active subscription
+  if (status === "active") {
+    const expiry = seller.planExpiry?.toDate?.() || (seller.planExpiry ? new Date(seller.planExpiry) : null);
+    if (!expiry) return { suspended: false, reason: "active", daysLeft: null };
+    const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 0) {
+      return { suspended: true, reason: "Subscription expired — renew to continue", daysLeft: 0 };
+    }
+    return { suspended: false, reason: "active", daysLeft };
+  }
+
+  // Trial / grace
+  if (status === "trial" || status === "grace") {
+    return { suspended: false, reason: status, daysLeft: null };
+  }
+
+  // Anything else (no plan, expired) → suspended
+  return { suspended: true, reason: "No active subscription", daysLeft: null };
 }
 
 // ── Plan Limit Check ──────────────────────────────────────────

@@ -137,6 +137,12 @@ function renderOrder(order) {
       ${order.deliveryCourier ? `<div class="order-meta-row"><span>Delivery</span><span>${order.deliveryCourier}</span></div>` : ""}
     </div>
 
+    <div style="display:flex;gap:8px;align-items:center;padding:12px;background:#fff;border:1px dashed #D1D5DB;border-radius:10px;margin-bottom:18px">
+      <input type="text" id="copyLinkInput" readonly value="${window.location.origin}/track.html?ref=${order.orderNumber}"
+             style="flex:1;border:none;background:transparent;font-family:monospace;font-size:.8125rem;outline:none;min-width:0">
+      <button onclick="copyTrackingLink(this)" style="padding:8px 14px;background:var(--accent,#6647FF);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.8125rem;white-space:nowrap">Copy link</button>
+    </div>
+
     <div class="timeline">
       ${stages.map((s, i) => `
         <div class="timeline-step ${i < idx ? "done" : i === idx ? "current" : ""}">
@@ -185,6 +191,25 @@ if (urlRef) {
   inputEl.value = urlRef.toUpperCase();
   searchOrder(urlRef.trim().toUpperCase());
 }
+
+// Copy tracking link
+window.copyTrackingLink = (btn) => {
+  const inp = document.getElementById("copyLinkInput");
+  if (!inp) return;
+  navigator.clipboard.writeText(inp.value).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "✓ Copied";
+    btn.style.background = "#10B981";
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.background = "";
+    }, 1800);
+  }).catch(() => {
+    inp.select();
+    document.execCommand("copy");
+    btn.textContent = "✓ Copied";
+  });
+};
 </script>
 </body>
 </html>

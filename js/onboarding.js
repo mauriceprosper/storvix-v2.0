@@ -5,6 +5,7 @@
 import {
   auth, db, onAuthStateChanged, getSeller, createSeller,
   uploadImage, checkSlugAvailable, serverTimestamp, doc, updateDoc,
+  Timestamp,
 } from "./firebase-config.js";
 import {
   toast, btnLoading, getParam, slugify, copyToClipboard,
@@ -12,6 +13,7 @@ import {
   normalisePhone, debounce, storeUrl,
 } from "./utils.js";
 import { callVerifyBankAccount } from "./firebase-config.js";
+import { PAYSTACK_PUBLIC_KEY, STARTER_PACK } from "./plans.js";
 
 // ── State ──────────────────────────────────────────────────
 let currentUser  = null;
@@ -314,10 +316,49 @@ document.getElementById("copyStoreUrl")?.addEventListener("click", () => {
   copyToClipboard(storeUrl(formData.slug || "your-store"), "Store URL copied!");
 });
 
-// ── Final Submit ─────────────────────────────────────────────
+// ── Final Submit: pay ₦1,000 starter pack ────────────────────
 document.getElementById("goToDashboard")?.addEventListener("click", async () => {
   const btn = document.getElementById("goToDashboard");
-  btnLoading(btn, true, "Go to Dashboard →");
+
+  if (!window.PaystackPop) {
+    toast("Payment library still loading — try again in a moment.", "error");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Opening payment…";
+
+  // Open Paystack — we charge BEFORE creating the seller, so failed payment = no seller created
+  const handler = window.PaystackPop.setup({
+    key:      PAYSTACK_PUBLIC_KEY,
+    email:    currentUser.email,
+    amount:   STARTER_PACK.amount * 100, // kobo
+    currency: "NGN",
+    ref:      `STX_STARTER_${currentUser.uid}_${Date.now()}`,
+    metadata: {
+      custom_fields: [
+        { display_name: "Type",       variable_name: "type",       value: "starter_pack" },
+        { display_name: "User ID",    variable_name: "user_id",    value: currentUser.uid },
+        { display_name: "Store",      variable_name: "store_name", value: formData.storeName },
+      ],
+    },
+    callback: function (response) {
+      // Payment succeeded — create the seller account
+      finalizeSellerCreation(response.reference, btn);
+    },
+    onClose: function () {
+      toast("Payment cancelled. Please complete payment to create your store.", "info");
+      btn.disabled = false;
+      btn.textContent = "Pay ₦1,000 & Launch Store →";
+    },
+  });
+
+  handler.openIframe();
+});
+
+async function finalizeSellerCreation(paymentRef, btn) {
+  btn.disabled = true;
+  btn.textContent = "Creating your store…";
 
   try {
     // Upload logo if provided
@@ -332,25 +373,33 @@ document.getElementById("goToDashboard")?.addEventListener("click", async () => 
       bannerUrl = await uploadImage(currentUser.uid, formData.bannerFile, "banner.jpg");
     }
 
-    // Create seller document
+    // Calculate starter pack expiry: now + 30 days
+    const starterExpiry = new Date();
+    starterExpiry.setDate(starterExpiry.getDate() + STARTER_PACK.durationDays);
+
+    // Create seller document with starter pack status
     await createSeller(currentUser.uid, {
-      ownerName:   formData.ownerName,
-      email:       currentUser.email,
-      storeName:   formData.storeName,
-      slug:        formData.slug,
-      plan:        formData.plan,
-      billing:     formData.billing,
-      categories:  formData.categories,
-      city:        formData.city,
-      state:       formData.state,
-      whatsapp:    formData.whatsapp,
-      tagline:     formData.tagline || "",
-      about:       formData.about   || "",
-      accentColor: formData.accentColor,
+      ownerName:     formData.ownerName,
+      email:         currentUser.email,
+      storeName:     formData.storeName,
+      slug:          formData.slug,
+      plan:          "pro",                    // Starter = Pro features
+      planStatus:    "starter",                // Special status for new sellers
+      starterExpiry: Timestamp.fromDate(starterExpiry),
+      starterPaidAt: serverTimestamp(),
+      starterPaymentRef: paymentRef,
+      billing:       "monthly",
+      categories:    formData.categories,
+      city:          formData.city,
+      state:         formData.state,
+      whatsapp:      formData.whatsapp,
+      tagline:       formData.tagline || "",
+      about:         formData.about   || "",
+      accentColor:   formData.accentColor,
       logoUrl,
       bannerUrl,
-      bank:        formData.bank || {},
-      bankVerified: formData.bankVerified,
+      bank:          formData.bank || {},
+      bankVerified:  formData.bankVerified,
     });
 
     // Clean up session storage
@@ -358,10 +407,12 @@ document.getElementById("goToDashboard")?.addEventListener("click", async () => 
     sessionStorage.removeItem("selectedBilling");
     sessionStorage.removeItem("ownerName");
 
-    window.location.href = "dashboard.html";
+    toast("Store created! Welcome to Storvix.", "success");
+    setTimeout(() => { window.location.href = "dashboard.html"; }, 1000);
   } catch (err) {
     console.error("Onboarding error:", err);
-    toast("Something went wrong saving your store. Please try again.", "error");
-    btnLoading(btn, false, "Go to Dashboard →");
+    toast("Payment received but store creation failed: " + err.message + ". Contact support with your payment reference.", "error");
+    btn.disabled = false;
+    btn.textContent = "Retry";
   }
-});
+}
