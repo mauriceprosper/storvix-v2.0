@@ -70,6 +70,10 @@
       </div>
 
       <div class="sidebar-section"><span class="sidebar-section-label">Settings</span></div>
+      <div class="nav-item" data-tab="inbox">
+        <span class="nav-icon">📨</span> Inbox
+        <span class="nav-badge" id="inboxBadge" style="display:none">0</span>
+      </div>
       <div class="nav-item" data-tab="settings">
         <span class="nav-icon">⚙️</span> Store Settings
       </div>
@@ -106,6 +110,26 @@
         <span class="dash-topbar-title" id="topbarTitle">Overview</span>
       </div>
       <div class="dash-topbar-actions">
+        <!-- Notification bell -->
+        <div class="notif-bell-wrap" style="position:relative">
+          <button class="notif-bell-btn" id="notifBellBtn" title="Notifications" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notif-bell-dot" id="notifBellDot" style="display:none"></span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown" style="display:none">
+            <div class="notif-dropdown-header">
+              <strong>Notifications</strong>
+              <button id="markAllReadBtn" class="link-btn">Mark all read</button>
+            </div>
+            <div class="notif-dropdown-list" id="notifDropdownList">
+              <div style="padding:32px 16px;text-align:center;color:var(--text-muted);font-size:.875rem">Loading…</div>
+            </div>
+            <div class="notif-dropdown-footer">
+              <a onclick="switchTab('inbox');closeNotifDropdown()" style="cursor:pointer">View all in Inbox →</a>
+            </div>
+          </div>
+        </div>
+
         <a id="viewStoreBtn" href="#" target="_blank" class="btn btn-sm btn-secondary">View Store ↗</a>
         <button class="btn btn-sm btn-primary" id="quickAddProductBtn">+ Add Product</button>
       </div>
@@ -565,6 +589,20 @@
         <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px">
           <button class="btn btn-secondary" id="settingsCancel">Cancel</button>
           <button class="btn btn-primary" id="settingsSave">Save Changes</button>
+        </div>
+      </div>
+
+      <!-- ─────────── INBOX ─────────── -->
+      <div class="dash-tab" id="tab-inbox">
+        <div class="dash-section-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <div>
+            <h2 style="font-size:1.5rem;font-weight:700;margin:0">Inbox</h2>
+            <p style="color:var(--text-muted);font-size:.9375rem;margin:4px 0 0">Updates from Storvix and your account.</p>
+          </div>
+          <button class="btn btn-sm btn-secondary" id="inboxMarkAllReadBtn">Mark all read</button>
+        </div>
+        <div id="inboxList">
+          <div class="empty-state"><div class="empty-icon">📨</div><h4>Loading…</h4></div>
         </div>
       </div>
 

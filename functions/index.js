@@ -5,7 +5,7 @@
 
 const { onRequest }         = require("firebase-functions/v2/https");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentUpdated, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onSchedule }        = require("firebase-functions/v2/scheduler");
 const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
@@ -719,4 +719,224 @@ exports.backfillWallets = onCall(CALLABLE_OPTS, async (request) => {
     console.error("[backfill] Fatal error:", err);
     throw new HttpsError("internal", err.message || "Unknown error", { stack: err.stack });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTO-PAYOUT: fires on every new withdrawal request
+//  Calls Paystack Transfer API + writes a notification to seller
+// ═══════════════════════════════════════════════════════════════
+exports.onWithdrawalCreated = onDocumentCreated({
+  document: "withdrawals/{withdrawalId}",
+  region:    FUNCTIONS_REGION,
+}, async (event) => {
+  const w = event.data?.data();
+  const id = event.params.withdrawalId;
+  if (!w) return;
+
+  // Only auto-process if status is pending and not already processed
+  if (w.status !== "pending") {
+    console.log(`[auto-payout] Skipping ${id} (status=${w.status})`);
+    return;
+  }
+  if (!w.bank?.accountNumber || !w.bank?.bankCode) {
+    console.warn(`[auto-payout] ${id} missing bank details`);
+    await event.data.ref.update({
+      status: "rejected",
+      rejectedAt: FieldValue.serverTimestamp(),
+      rejectReason: "No valid bank account on file",
+    });
+    return;
+  }
+
+  try {
+    // Step 1: create transfer recipient
+    const recipientRes = await paystackPost("/transferrecipient", {
+      type: "nuban",
+      name: w.bank.accountName,
+      account_number: w.bank.accountNumber,
+      bank_code: w.bank.bankCode,
+      currency: "NGN",
+    });
+    if (!recipientRes.status) {
+      throw new Error(recipientRes.message || "recipient creation failed");
+    }
+
+    // Step 2: initiate transfer
+    const transferRes = await paystackPost("/transfer", {
+      source: "balance",
+      reason: `Storvix payout — ${w.sellerId.slice(0,8)}`,
+      amount: w.netAmount * 100,
+      recipient: recipientRes.data.recipient_code,
+    });
+    if (!transferRes.status) {
+      throw new Error(transferRes.message || "transfer failed");
+    }
+
+    // Update withdrawal to "processing" — final status comes from /transfer/finalize webhook (not used in test)
+    // For test mode, transfer is auto-finalized — mark as paid immediately
+    await event.data.ref.update({
+      status: "paid",       // test mode auto-completes
+      paystackTransferCode: transferRes.data?.transfer_code || "",
+      paystackRecipientCode: recipientRes.data?.recipient_code || "",
+      paidAt: FieldValue.serverTimestamp(),
+      method: "paystack_auto",
+    });
+
+    // Notify seller via in-app notification
+    await createNotification(w.sellerId, {
+      type: "payout_success",
+      icon: "💸",
+      title: `Payout of ₦${w.amount.toLocaleString()} sent`,
+      body: `Your withdrawal has been transferred to ${w.bank.bankName} (${w.bank.accountNumber}). Net ₦${(w.netAmount).toLocaleString()}.`,
+      link: "/dashboard.html?tab=wallet",
+    });
+
+    console.log(`[auto-payout] ${id} sent — transfer ${transferRes.data?.transfer_code}`);
+  } catch (err) {
+    console.error(`[auto-payout] ${id} failed:`, err.message);
+
+    // Mark as failed + refund wallet
+    await event.data.ref.update({
+      status: "rejected",
+      rejectedAt: FieldValue.serverTimestamp(),
+      rejectReason: `Auto-payout failed: ${err.message}`,
+    });
+
+    await db.doc(`sellers/${w.sellerId}`).update({
+      "wallet.balance":        FieldValue.increment(w.amount),
+      "wallet.totalWithdrawn": FieldValue.increment(-w.amount),
+    });
+
+    await createNotification(w.sellerId, {
+      type: "payout_failed",
+      icon: "⚠️",
+      title: `Payout of ₦${w.amount.toLocaleString()} failed`,
+      body: `${err.message}. The amount has been returned to your wallet.`,
+      link: "/dashboard.html?tab=wallet",
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Notification helper (writes to sellers/{id}/notifications)
+// ═══════════════════════════════════════════════════════════════
+async function createNotification(sellerId, payload) {
+  try {
+    await db.collection("sellers").doc(sellerId).collection("notifications").add({
+      ...payload,
+      read: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn(`[notification] Failed for ${sellerId}:`, e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ADMIN: send message to one seller or broadcast to many
+// ═══════════════════════════════════════════════════════════════
+exports.adminSendMessage = onCall(CALLABLE_OPTS, async (request) => {
+  const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
+  const callerEmail  = (request.auth?.token?.email || "").toLowerCase().trim();
+  if (!ADMIN_EMAILS.includes(callerEmail)) {
+    throw new HttpsError("permission-denied", "Admin only.");
+  }
+
+  const { recipients, title, body, icon } = request.data;
+  if (!title || !body) {
+    throw new HttpsError("invalid-argument", "Title and body required.");
+  }
+
+  // recipients: "all" | "active" | "trial" | "starter" | array of seller IDs
+  let sellerIds = [];
+  if (Array.isArray(recipients)) {
+    sellerIds = recipients;
+  } else if (recipients === "all") {
+    const snap = await db.collection("sellers").get();
+    sellerIds = snap.docs.map(d => d.id);
+  } else {
+    const snap = await db.collection("sellers").where("planStatus", "==", recipients).get();
+    sellerIds = snap.docs.map(d => d.id);
+  }
+
+  console.log(`[broadcast] Sending to ${sellerIds.length} seller(s)`);
+
+  // Batched writes
+  const BATCH_SIZE = 400;
+  let sent = 0;
+  for (let i = 0; i < sellerIds.length; i += BATCH_SIZE) {
+    const slice = sellerIds.slice(i, i + BATCH_SIZE);
+    const batch = db.batch();
+    for (const sid of slice) {
+      const ref = db.collection("sellers").doc(sid).collection("notifications").doc();
+      batch.set(ref, {
+        type:    "admin_message",
+        icon:    icon || "📢",
+        title,
+        body,
+        from:    callerEmail,
+        read:    false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    sent += slice.length;
+  }
+
+  // Log the broadcast
+  await db.collection("adminBroadcasts").add({
+    title, body, icon: icon || "📢",
+    recipients,
+    recipientCount: sent,
+    sentBy: callerEmail,
+    sentAt: FieldValue.serverTimestamp(),
+  });
+
+  return { success: true, sent };
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Notification trigger: subscription expiring soon (3 days out)
+//  Runs daily; checks all active sellers with planExpiry approaching
+// ═══════════════════════════════════════════════════════════════
+exports.subscriptionExpiryReminder = onSchedule({
+  schedule:  "every day 09:00",
+  timeZone:  "Africa/Lagos",
+  region:    FUNCTIONS_REGION,
+}, async () => {
+  const now = Timestamp.now();
+  const in3Days = Timestamp.fromMillis(now.toMillis() + 3 * 24 * 60 * 60 * 1000);
+  const in7Days = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000);
+
+  // Snapshot all active sellers
+  const snap = await db.collection("sellers").where("planStatus", "in", ["active", "starter"]).get();
+  let notified = 0;
+
+  for (const sellerDoc of snap.docs) {
+    const seller = sellerDoc.data();
+    const expiry = seller.starterExpiry || seller.planExpiry;
+    if (!expiry) continue;
+
+    const expiryMs = expiry.toMillis ? expiry.toMillis() : expiry.seconds * 1000;
+    const daysLeft = Math.ceil((expiryMs - now.toMillis()) / (24 * 60 * 60 * 1000));
+
+    // Notify at 7 days and 3 days
+    if (daysLeft === 7 || daysLeft === 3 || daysLeft === 1) {
+      const isStarter = seller.planStatus === "starter";
+      await createNotification(sellerDoc.id, {
+        type: "subscription_reminder",
+        icon: daysLeft === 1 ? "⚠️" : "📅",
+        title: isStarter
+          ? `Starter pack ends in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`
+          : `Subscription renews in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
+        body: isStarter
+          ? `Pick a plan to keep your store live after expiry.`
+          : `Your ${seller.plan} subscription will renew automatically.`,
+        link: "/dashboard.html?tab=billing",
+      });
+      notified++;
+    }
+  }
+
+  console.log(`[expiry-reminder] Notified ${notified} seller(s)`);
 });

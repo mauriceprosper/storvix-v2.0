@@ -8,7 +8,8 @@ import {
   getCustomers, getDiscounts, getPaymentLinks, getTransactions, getTestimonials,
   uploadImage, requestWithdrawal, logOut,
   doc, getDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp,
-  onSnapshot, callCreatePaymentLink,
+  onSnapshot, callCreatePaymentLink, writeBatch,
+  query, where, orderBy, limit,
 } from "./firebase-config.js";
 import {
   fmt, toast, btnLoading, storeUrl, copyToClipboard, fmtDate, timeAgo,
@@ -359,6 +360,7 @@ function updateOrderStats() {
 
 // ── Load All Tabs ─────────────────────────────────────────────
 async function loadAllTabs(uid) {
+  startNotificationsListener(uid);
   await Promise.all([
     loadProducts(uid),
     loadCustomers(uid),
@@ -1365,3 +1367,155 @@ window.cancelSubscription = () => {
 window.openModal     = openModal;
 window.closeModal    = closeModal;
 window.copyToClipboard = copyToClipboard;
+
+// ═════════════════════════════════════════════════════════════
+//  NOTIFICATIONS — bell dropdown + Inbox tab
+// ═════════════════════════════════════════════════════════════
+let allNotifs = [];
+let notifsListener = null;
+
+function startNotificationsListener(uid) {
+  if (notifsListener) notifsListener();
+  const q = query(
+    collection(db, "sellers", uid, "notifications"),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  );
+  notifsListener = onSnapshot(q, (snap) => {
+    allNotifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderNotificationBell();
+    renderInbox();
+  }, (err) => {
+    console.warn("Notifications listener error:", err.message);
+  });
+}
+
+function renderNotificationBell() {
+  const dot = document.getElementById("notifBellDot");
+  const list = document.getElementById("notifDropdownList");
+  const inboxBadge = document.getElementById("inboxBadge");
+  if (!dot || !list) return;
+
+  const unread = allNotifs.filter(n => !n.read);
+  if (unread.length > 0) {
+    dot.style.display = "";
+    if (inboxBadge) {
+      inboxBadge.style.display = "";
+      inboxBadge.textContent = unread.length > 99 ? "99+" : unread.length;
+    }
+  } else {
+    dot.style.display = "none";
+    if (inboxBadge) inboxBadge.style.display = "none";
+  }
+
+  // Render top 8 in dropdown
+  if (allNotifs.length === 0) {
+    list.innerHTML = `<div style="padding:32px 16px;text-align:center;color:var(--text-muted);font-size:.875rem">
+      <div style="font-size:1.5rem;margin-bottom:6px">📭</div>
+      No notifications yet
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = allNotifs.slice(0, 8).map(n => `
+    <div class="notif-row ${n.read ? "" : "unread"}" onclick="onNotifClick('${n.id}', '${(n.link || "").replace(/'/g, "\\'")}')">
+      <div class="notif-row-icon">${n.icon || "🔔"}</div>
+      <div class="notif-row-content">
+        <div class="notif-row-title">${escapeHtml(n.title || "")}</div>
+        <div class="notif-row-body">${escapeHtml(n.body || "")}</div>
+        <div class="notif-row-time">${timeAgo(n.createdAt)}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderInbox() {
+  const wrap = document.getElementById("inboxList");
+  if (!wrap) return;
+
+  if (!allNotifs.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📨</div>
+      <h4>No messages yet</h4>
+      <p>Notifications, payout updates, and admin announcements will appear here.</p>
+    </div>`;
+    return;
+  }
+
+  wrap.innerHTML = allNotifs.map(n => `
+    <div class="inbox-card ${n.read ? "" : "unread"}" onclick="onNotifClick('${n.id}', '${(n.link || "").replace(/'/g, "\\'")}')">
+      <div class="inbox-card-icon">${n.icon || "🔔"}</div>
+      <div class="inbox-card-body">
+        <h4 class="inbox-card-title">${escapeHtml(n.title || "")}</h4>
+        <p class="inbox-card-text">${escapeHtml(n.body || "")}</p>
+        <div class="inbox-card-meta">
+          <span>${timeAgo(n.createdAt)}</span>
+          ${n.from ? `<span>· From ${escapeHtml(n.from)}</span>` : ""}
+          ${n.read ? "" : '<span style="color:var(--purple);font-weight:600">· Unread</span>'}
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+window.onNotifClick = async (notifId, link) => {
+  const n = allNotifs.find(x => x.id === notifId);
+  if (!n) return;
+  // Mark read
+  if (!n.read) {
+    try {
+      await updateDoc(doc(db, "sellers", seller.id, "notifications", notifId), { read: true });
+    } catch (e) { console.warn("Mark read failed:", e); }
+  }
+  // Navigate
+  if (link) {
+    closeNotifDropdown();
+    if (link.startsWith("/dashboard.html")) {
+      const tabMatch = link.match(/tab=([\w-]+)/);
+      if (tabMatch) switchTab(tabMatch[1]);
+    } else if (link.startsWith("http") || link.startsWith("/")) {
+      window.location.href = link;
+    }
+  }
+};
+
+window.closeNotifDropdown = () => {
+  const dd = document.getElementById("notifDropdown");
+  if (dd) dd.style.display = "none";
+};
+
+document.getElementById("notifBellBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById("notifDropdown");
+  if (!dd) return;
+  dd.style.display = dd.style.display === "none" ? "" : "none";
+});
+
+// Click outside to close
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".notif-bell-wrap");
+  if (wrap && !wrap.contains(e.target)) closeNotifDropdown();
+});
+
+// Mark all read (both in bell and inbox)
+async function markAllRead() {
+  const unread = allNotifs.filter(n => !n.read);
+  if (!unread.length) { toast("No unread messages.", "info"); return; }
+  try {
+    const batch = writeBatch(db);
+    for (const n of unread) {
+      batch.update(doc(db, "sellers", seller.id, "notifications", n.id), { read: true });
+    }
+    await batch.commit();
+    toast(`Marked ${unread.length} as read.`, "success");
+  } catch (e) {
+    toast("Failed: " + e.message, "error");
+  }
+}
+document.getElementById("markAllReadBtn")?.addEventListener("click", markAllRead);
+document.getElementById("inboxMarkAllReadBtn")?.addEventListener("click", markAllRead);
