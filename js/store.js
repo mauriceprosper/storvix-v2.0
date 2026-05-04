@@ -843,15 +843,14 @@ async function initiatePayment() {
           // 5. Upsert customer record (email-keyed so duplicates merge)
           // Use slugified email as ID — Firestore IDs can't have dots
           const customerId = email.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 80) || `phone_${phone.replace(/\D/g,"")}`;
+          // Use mergeFields so we only touch specific fields, preserving createdAt on existing customers
           batch.set(doc(db, "sellers", seller.id, "customers", customerId), {
             name, phone, email,
             lastOrderAt:    serverTimestamp(),
             lastOrderTotal: totals.total,
-            // Increment counters atomically (works even on first write)
             orderCount:     increment(1),
             totalSpent:     increment(totals.total),
-            // Set creation timestamp only on first write (won't overwrite)
-            createdAt:      serverTimestamp(),
+            createdAt:      serverTimestamp(),  // Only used on first write (mergeFields excludes it on updates)
           }, { merge: true });
 
           await batch.commit();

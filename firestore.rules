@@ -71,9 +71,14 @@ service cloud.firestore {
       }
 
       // ── Payment Links ─────────────────────────────────
+      // ── Payment Links ─────────────────────────────────
       match /paymentLinks/{linkId} {
         allow read: if true;
-        allow create, update: if isOwner(sellerId);
+        // Owner/admin full access. Public can update only specific fields after paying.
+        allow create: if isOwner(sellerId);
+        allow update: if isOwner(sellerId) || isAdmin()
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['used', 'usedAt', 'usedBy', 'paidAt', 'usageCount', 'lastUsedAt']);
         allow delete: if isOwner(sellerId);
       }
 

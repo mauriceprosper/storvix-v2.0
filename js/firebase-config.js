@@ -155,9 +155,11 @@ export async function updateOrderStatus(sellerId, orderId, status, extra = {}) {
 
 // ── Customers ─────────────────────────────────────────────────
 export async function getCustomers(sellerId) {
-  const q    = query(collection(db, "sellers", sellerId, "customers"), orderBy("lastOrderAt", "desc"));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // Use plain getDocs (no orderBy) to include any docs missing lastOrderAt
+  const snap = await getDocs(collection(db, "sellers", sellerId, "customers"));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.lastOrderAt?.toMillis?.() || 0) - (a.lastOrderAt?.toMillis?.() || 0));
 }
 
 // ── Discounts ─────────────────────────────────────────────────

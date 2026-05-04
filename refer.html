@@ -208,7 +208,7 @@ import {
   auth, db,
   doc, getDoc, setDoc, updateDoc, getDocs, collection, query, orderBy, limit,
   serverTimestamp, addDoc, callVerifyBankAccount,
-  onAuthStateChanged,
+  onAuthStateChanged, onSnapshot,
 } from "./js/firebase-config.js";
 import {
   createUserWithEmailAndPassword,
@@ -219,6 +219,8 @@ import { fmt, toast, NIGERIAN_BANKS } from "./js/utils.js";
 
 let currentUser = null;
 let referrer    = null;
+let _refUnsub    = null;
+let _earningsUnsub = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -230,6 +232,10 @@ function showState(name) {
 
 // ── Auth state ──
 onAuthStateChanged(auth, async (user) => {
+  // Clean up listeners on auth change
+  if (_refUnsub) { _refUnsub(); _refUnsub = null; }
+  if (_earningsUnsub) { _earningsUnsub(); _earningsUnsub = null; }
+
   if (!user) {
     currentUser = null; referrer = null;
     showState("signupState");
@@ -241,11 +247,11 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await getDoc(doc(db, "referrers", user.uid));
     if (snap.exists()) {
       referrer = { id: user.uid, ...snap.data() };
+      attachRealtimeListeners();
       renderDashboard();
       showState("dashState");
     } else {
-      // Signed in but not registered as a referrer — could be a regular seller
-      // Offer to create referrer record
+      // Signed in but not registered as a referrer
       await createReferrerRecord(user, user.displayName || user.email.split("@")[0], user.email, "");
     }
   } catch (e) {
@@ -253,6 +259,26 @@ onAuthStateChanged(auth, async (user) => {
     toast("Failed to load referrer data: " + e.message, "error");
   }
 });
+
+// Attach real-time listeners so balance + earnings auto-update when commissions land
+function attachRealtimeListeners() {
+  if (!currentUser) return;
+
+  // Listen to referrer doc for balance/totalEarned/referralCount changes
+  _refUnsub = onSnapshot(doc(db, "referrers", currentUser.uid), (snap) => {
+    if (snap.exists()) {
+      referrer = { id: currentUser.uid, ...snap.data() };
+      renderDashboard();
+    }
+  }, (err) => console.warn("Referrer listener error:", err));
+
+  // Listen to earnings subcollection for new entries
+  _earningsUnsub = onSnapshot(
+    query(collection(db, "referrers", currentUser.uid, "earnings"), orderBy("createdAt", "desc"), limit(20)),
+    (snap) => renderEarnings(snap),
+    (err) => console.warn("Earnings listener error:", err)
+  );
+}
 
 // ── Sign up ──
 $("signupForm").addEventListener("submit", async (e) => {
@@ -345,7 +371,28 @@ function renderDashboard() {
   $("myLink").value            = `${window.location.origin}/onboarding.html?ref=${referrer.code || ""}`;
 
   renderBankSection();
-  loadEarnings();
+  // Earnings list is updated by realtime listener (attachRealtimeListeners)
+}
+
+function renderEarnings(snap) {
+  const wrap = $("earningsList");
+  if (!wrap) return;
+  if (!snap || snap.empty) {
+    wrap.innerHTML = `<div style="text-align:center;color:#9CA3AF;padding:32px;font-size:.875rem">No referrals yet — share your code to earn!</div>`;
+    return;
+  }
+  wrap.innerHTML = snap.docs.map(d => {
+    const e = d.data();
+    const when = e.createdAt?.toDate?.() ? new Date(e.createdAt.toDate()).toLocaleDateString("en-NG", { day:"numeric", month:"short" }) : "";
+    return `
+      <div style="padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600;font-size:.9375rem">${e.referredStoreName || "New seller"}</div>
+          <div style="font-size:.75rem;color:#6B7280">Signed up ${when}</div>
+        </div>
+        <div style="font-weight:700;color:#047857">+${fmt(e.amount || 0)}</div>
+      </div>`;
+  }).join("");
 }
 
 $("copyCodeBtn")?.addEventListener("click", () => {
@@ -473,34 +520,7 @@ function renderBankSection() {
   }
 }
 
-async function loadEarnings() {
-  const wrap = $("earningsList");
-  try {
-    const snap = await getDocs(query(
-      collection(db, "referrers", referrer.id, "earnings"),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    ));
-    if (snap.empty) {
-      wrap.innerHTML = `<div style="text-align:center;color:#9CA3AF;padding:32px;font-size:.875rem">No referrals yet — share your code to earn!</div>`;
-      return;
-    }
-    wrap.innerHTML = snap.docs.map(d => {
-      const e = d.data();
-      const when = e.createdAt?.toDate?.() ? new Date(e.createdAt.toDate()).toLocaleDateString("en-NG", { day:"numeric", month:"short" }) : "";
-      return `
-        <div style="padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-weight:600;font-size:.9375rem">${e.referredStoreName || "New seller"}</div>
-            <div style="font-size:.75rem;color:#6B7280">Signed up ${when}</div>
-          </div>
-          <div style="font-weight:700;color:#047857">+${fmt(e.amount || 0)}</div>
-        </div>`;
-    }).join("");
-  } catch (err) {
-    console.warn("Earnings load failed:", err.message);
-  }
-}
+// loadEarnings is no longer needed — renderEarnings is called by the realtime listener
 </script>
 </body>
 </html>

@@ -351,12 +351,30 @@ exports.getDeliveryRates = onCall(CALLABLE_OPTS, async (request) => {
 //  5. verifyBankAccount (Callable)
 // ═══════════════════════════════════════════════════════════════
 exports.verifyBankAccount = onCall(CALLABLE_OPTS, async (request) => {
-  const { accountNumber, bankCode } = request.data;
-  if (!accountNumber || !bankCode) throw new Error("accountNumber and bankCode required");
+  try {
+    const { accountNumber, bankCode } = request.data || {};
+    if (!accountNumber || !bankCode) {
+      throw new HttpsError("invalid-argument", "accountNumber and bankCode required");
+    }
+    if (!PAYSTACK_SECRET) {
+      console.error("[verifyBank] PAYSTACK_SECRET env var is missing!");
+      throw new HttpsError("failed-precondition", "Paystack secret key not configured on server. Contact admin.");
+    }
 
-  const data = await paystackGet(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
-  if (!data.status) throw new Error(data.message || "Verification failed");
-  return { accountName: data.data?.account_name || "" };
+    console.log(`[verifyBank] Looking up ${accountNumber} at bank ${bankCode}`);
+    const data = await paystackGet(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
+    console.log(`[verifyBank] Paystack response:`, JSON.stringify(data).slice(0, 200));
+
+    if (!data.status) {
+      // Paystack returns the actual user-friendly error in `message`
+      throw new HttpsError("not-found", data.message || "Account not found");
+    }
+    return { accountName: data.data?.account_name || "" };
+  } catch (err) {
+    console.error("[verifyBank] Error:", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err.message || "Verification failed");
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -1019,89 +1037,102 @@ exports.onSellerCreated = onDocumentCreated({
   document: "sellers/{sellerId}",
   region:    FUNCTIONS_REGION,
 }, async (event) => {
-  const seller = event.data?.data();
-  const sellerId = event.params.sellerId;
-  if (!seller) return;
+  try {
+    const seller = event.data?.data();
+    const sellerId = event.params.sellerId;
+    console.log(`[onSellerCreated] FIRED for ${sellerId}, referredBy="${seller?.referredBy}", starterPaidAt=${!!seller?.starterPaidAt}`);
 
-  const referredBy = (seller.referredBy || "").toUpperCase().trim();
-  if (!referredBy) return;
-  if (!seller.starterPaidAt) {
-    console.log(`[referral] ${sellerId} has code but hasn't paid yet`);
-    return;
-  }
+    if (!seller) { console.log("[onSellerCreated] No seller data"); return; }
 
-  // Look up the referral code owner
-  const codeSnap = await db.doc(`referralCodes/${referredBy}`).get();
-  if (!codeSnap.exists) {
-    console.warn(`[referral] Code "${referredBy}" not found`);
-    return;
-  }
-  const { ownerType, ownerId } = codeSnap.data();
-
-  // Don't allow self-referral
-  if (ownerId === sellerId) {
-    console.log(`[referral] ${sellerId} tried to self-refer`);
-    return;
-  }
-
-  if (ownerType === "seller") {
-    // Credit owner's wallet + create transaction
-    const txnId = `referral_${sellerId}`;  // idempotent
-    const txnRef = db.doc(`sellers/${ownerId}/transactions/${txnId}`);
-    const txnExists = await txnRef.get();
-    if (txnExists.exists) {
-      console.log(`[referral] Already credited for ${sellerId}`);
+    const referredBy = (seller.referredBy || "").toUpperCase().trim();
+    if (!referredBy) {
+      console.log(`[onSellerCreated] ${sellerId} has no referral code, skipping`);
+      return;
+    }
+    if (!seller.starterPaidAt) {
+      console.log(`[onSellerCreated] ${sellerId} has code "${referredBy}" but hasn't paid yet — onSellerStarterPaid will handle later`);
       return;
     }
 
-    const batch = db.batch();
-    batch.update(db.doc(`sellers/${ownerId}`), {
-      "wallet.balance":     FieldValue.increment(REFERRAL_AMOUNT),
-      "wallet.totalEarned": FieldValue.increment(REFERRAL_AMOUNT),
-      referralCount:        FieldValue.increment(1),
-      referralEarned:       FieldValue.increment(REFERRAL_AMOUNT),
-    });
-    batch.set(txnRef, {
-      type: "credit",
-      amount: REFERRAL_AMOUNT,
-      description: `Referral bonus — ${seller.storeName || "new seller"}`,
-      source: "referral",
-      referredSellerId: sellerId,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
+    // Look up the referral code owner
+    const codeSnap = await db.doc(`referralCodes/${referredBy}`).get();
+    if (!codeSnap.exists) {
+      console.warn(`[onSellerCreated] Code "${referredBy}" not found in referralCodes`);
+      return;
+    }
+    const { ownerType, ownerId, ownerName } = codeSnap.data();
+    console.log(`[onSellerCreated] Code "${referredBy}" belongs to ${ownerType} ${ownerId} (${ownerName})`);
 
-    await createNotification(ownerId, {
-      type: "referral_earned",
-      icon: "🎉",
-      title: `+₦${REFERRAL_AMOUNT} referral bonus!`,
-      body: `${seller.storeName || "A new seller"} signed up using your referral code. The bonus has been added to your wallet.`,
-      link: "/dashboard.html?tab=wallet",
-    });
+    // Don't allow self-referral
+    if (ownerId === sellerId) {
+      console.log(`[onSellerCreated] ${sellerId} tried to self-refer, skipping`);
+      return;
+    }
 
-    console.log(`[referral] Credited seller ${ownerId.slice(0,8)} ₦${REFERRAL_AMOUNT}`);
-  } else if (ownerType === "referrer") {
-    // Credit non-seller referrer
-    const txnRef = db.doc(`referrers/${ownerId}/earnings/${sellerId}`);
-    const txnExists = await txnRef.get();
-    if (txnExists.exists) return;
+    if (ownerType === "seller") {
+      const txnId = `referral_${sellerId}`;
+      const txnRef = db.doc(`sellers/${ownerId}/transactions/${txnId}`);
+      const txnExists = await txnRef.get();
+      if (txnExists.exists) {
+        console.log(`[onSellerCreated] Already credited for ${sellerId}`);
+        return;
+      }
 
-    const batch = db.batch();
-    batch.update(db.doc(`referrers/${ownerId}`), {
-      balance:     FieldValue.increment(REFERRAL_AMOUNT),
-      totalEarned: FieldValue.increment(REFERRAL_AMOUNT),
-      referralCount: FieldValue.increment(1),
-    });
-    batch.set(txnRef, {
-      type: "credit",
-      amount: REFERRAL_AMOUNT,
-      referredSellerId: sellerId,
-      referredStoreName: seller.storeName || "",
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
+      const batch = db.batch();
+      batch.update(db.doc(`sellers/${ownerId}`), {
+        "wallet.balance":     FieldValue.increment(REFERRAL_AMOUNT),
+        "wallet.totalEarned": FieldValue.increment(REFERRAL_AMOUNT),
+        referralCount:        FieldValue.increment(1),
+        referralEarned:       FieldValue.increment(REFERRAL_AMOUNT),
+      });
+      batch.set(txnRef, {
+        type: "credit",
+        amount: REFERRAL_AMOUNT,
+        description: `Referral bonus — ${seller.storeName || "new seller"}`,
+        source: "referral",
+        referredSellerId: sellerId,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      await batch.commit();
 
-    console.log(`[referral] Credited referrer ${ownerId.slice(0,8)} ₦${REFERRAL_AMOUNT}`);
+      await createNotification(ownerId, {
+        type: "referral_earned",
+        icon: "🎉",
+        title: `+₦${REFERRAL_AMOUNT} referral bonus!`,
+        body: `${seller.storeName || "A new seller"} signed up using your referral code. The bonus has been added to your wallet.`,
+        link: "/dashboard.html?tab=wallet",
+      });
+
+      console.log(`[onSellerCreated] ✓ Credited seller ${ownerId.slice(0,8)} ₦${REFERRAL_AMOUNT}`);
+    } else if (ownerType === "referrer") {
+      const txnRef = db.doc(`referrers/${ownerId}/earnings/${sellerId}`);
+      const txnExists = await txnRef.get();
+      if (txnExists.exists) {
+        console.log(`[onSellerCreated] Already credited referrer for ${sellerId}`);
+        return;
+      }
+
+      const batch = db.batch();
+      batch.update(db.doc(`referrers/${ownerId}`), {
+        balance:     FieldValue.increment(REFERRAL_AMOUNT),
+        totalEarned: FieldValue.increment(REFERRAL_AMOUNT),
+        referralCount: FieldValue.increment(1),
+      });
+      batch.set(txnRef, {
+        type: "credit",
+        amount: REFERRAL_AMOUNT,
+        referredSellerId: sellerId,
+        referredStoreName: seller.storeName || "",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      await batch.commit();
+
+      console.log(`[onSellerCreated] ✓ Credited referrer ${ownerId.slice(0,8)} ₦${REFERRAL_AMOUNT}`);
+    } else {
+      console.warn(`[onSellerCreated] Unknown ownerType "${ownerType}"`);
+    }
+  } catch (err) {
+    console.error("[onSellerCreated] ERROR:", err);
   }
 });
 
