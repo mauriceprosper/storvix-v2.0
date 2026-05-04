@@ -9,7 +9,7 @@ import {
   auth, db, onAuthStateChanged, isAdmin, ADMIN_EMAILS,
   collection, getDocs, collectionGroup, query, orderBy, limit, where,
   doc, updateDoc, serverTimestamp, increment,
-  callProcessPayout, callBackfillWallets,
+  callProcessPayout, callBackfillWallets, callAdminSendMessage,
   googleSignIn, logOut,
 } from "./firebase-config.js";
 import { fmt, toast, fmtDate, timeAgo, statusBadge, planBadge, copyToClipboard } from "./utils.js";
@@ -954,4 +954,150 @@ document.getElementById("backfillBtn")?.addEventListener("click", async () => {
 
   btn.disabled = false;
   btn.textContent = "Run Wallet Backfill";
+});
+
+// ═════════════════════════════════════════════════════════════
+//  MESSAGING — broadcast & direct messages to sellers
+// ═════════════════════════════════════════════════════════════
+let _msgSelectedIcon = "📢";
+
+// Icon picker
+document.querySelectorAll(".icon-pick").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".icon-pick").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    _msgSelectedIcon = btn.dataset.icon;
+  });
+});
+// Pre-select default
+document.querySelector('.icon-pick[data-icon="📢"]')?.classList.add("selected");
+
+// Recipients dropdown logic
+document.getElementById("msgRecipients")?.addEventListener("change", (e) => {
+  const v = e.target.value;
+  const wrap = document.getElementById("specificSellerWrap");
+  const countEl = document.getElementById("msgRecipientCount");
+
+  if (v === "specific") {
+    wrap.style.display = "";
+    // Populate seller dropdown
+    const sel = document.getElementById("msgSellerId");
+    sel.innerHTML = '<option value="">Select a seller…</option>' +
+      allSellers
+        .sort((a, b) => (a.storeName || "").localeCompare(b.storeName || ""))
+        .map(s => `<option value="${s.id}">${s.storeName || s.email || s.id.slice(0,8)} (${s.email || "—"})</option>`)
+        .join("");
+    countEl.textContent = "1 recipient";
+  } else if (v === "all") {
+    wrap.style.display = "none";
+    countEl.textContent = `${allSellers.length} recipients`;
+  } else if (v === "active") {
+    wrap.style.display = "none";
+    countEl.textContent = `${allSellers.filter(s => s.planStatus === "active").length} recipients`;
+  } else if (v === "starter") {
+    wrap.style.display = "none";
+    countEl.textContent = `${allSellers.filter(s => s.planStatus === "starter").length} recipients`;
+  } else if (v === "trial") {
+    wrap.style.display = "none";
+    countEl.textContent = `${allSellers.filter(s => s.planStatus === "trial").length} recipients`;
+  } else {
+    wrap.style.display = "none";
+    countEl.textContent = "—";
+  }
+});
+
+// Submit handler
+document.getElementById("adminMessageForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const recipientsType = document.getElementById("msgRecipients").value;
+  const sellerId       = document.getElementById("msgSellerId")?.value;
+  const title          = document.getElementById("msgTitle").value.trim();
+  const body           = document.getElementById("msgBody").value.trim();
+
+  if (!recipientsType) { toast("Choose recipients.", "error"); return; }
+  if (recipientsType === "specific" && !sellerId) { toast("Choose a seller.", "error"); return; }
+  if (!title || !body) { toast("Title and message required.", "error"); return; }
+
+  // Confirm broadcasts
+  if (recipientsType === "all" && !confirm(`Send "${title}" to ALL ${allSellers.length} sellers?`)) return;
+
+  const btn = document.getElementById("msgSendBtn");
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+
+  try {
+    const recipients = recipientsType === "specific" ? [sellerId] : recipientsType;
+    const result = await callAdminSendMessage({
+      recipients,
+      title,
+      body,
+      icon: _msgSelectedIcon,
+    });
+
+    const sent = result.data?.sent || 0;
+    toast(`Message sent to ${sent} seller${sent !== 1 ? "s" : ""}.`, "success");
+
+    // Reset form
+    document.getElementById("adminMessageForm").reset();
+    document.getElementById("specificSellerWrap").style.display = "none";
+    document.getElementById("msgRecipientCount").textContent = "—";
+    _msgSelectedIcon = "📢";
+    document.querySelectorAll(".icon-pick").forEach(b => b.classList.remove("selected"));
+    document.querySelector('.icon-pick[data-icon="📢"]')?.classList.add("selected");
+
+    // Reload broadcast list
+    loadRecentBroadcasts();
+  } catch (err) {
+    console.error("Send failed:", err);
+    toast("Failed: " + (err.message || "Unknown error"), "error");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "Send Message";
+});
+
+// Load recent broadcasts
+async function loadRecentBroadcasts() {
+  const wrap = document.getElementById("recentBroadcastsList");
+  if (!wrap) return;
+
+  try {
+    const snap = await getDocs(query(
+      collection(db, "adminBroadcasts"),
+      orderBy("sentAt", "desc"),
+      limit(10)
+    ));
+
+    if (snap.empty) {
+      wrap.innerHTML = `<div class="admin-empty" style="padding:32px"><div class="admin-empty-icon">📭</div><p style="font-size:.875rem">No broadcasts yet</p></div>`;
+      return;
+    }
+
+    wrap.innerHTML = snap.docs.map(d => {
+      const b = d.data();
+      const audience = Array.isArray(b.recipients)
+        ? `${b.recipientCount} specific seller${b.recipientCount !== 1 ? "s" : ""}`
+        : b.recipients === "all"
+          ? `All sellers (${b.recipientCount})`
+          : `${b.recipients} sellers (${b.recipientCount})`;
+
+      return `
+        <div class="broadcast-row">
+          <div class="broadcast-row-meta">
+            <span>${audience}</span>
+            <span>${timeAgo(b.sentAt)}</span>
+          </div>
+          <div class="broadcast-row-title">${b.icon || "📢"} ${b.title}</div>
+          <div class="broadcast-row-body">${b.body}</div>
+        </div>`;
+    }).join("");
+  } catch (err) {
+    console.warn("Broadcasts load failed:", err.message);
+    wrap.innerHTML = `<div class="admin-empty" style="padding:32px"><p style="font-size:.875rem">Could not load recent broadcasts.</p></div>`;
+  }
+}
+
+// Hook into tab switch — load broadcasts when entering Messaging tab
+document.querySelectorAll('.admin-nav-item[data-tab="messaging"]').forEach(item => {
+  item.addEventListener("click", () => loadRecentBroadcasts());
 });

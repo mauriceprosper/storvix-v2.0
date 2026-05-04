@@ -21,10 +21,10 @@ export const PAYSTACK_PUBLIC_KEY = TEST_MODE ? PAYSTACK_KEYS.test : PAYSTACK_KEY
 // ── Paystack Plan Codes (create these on Paystack dashboard) ──
 // Go to: dashboard.paystack.com → Subscriptions → Plans → Create Plan
 export const PAYSTACK_PLAN_CODES = {
-  lite:  { monthly: "PLN_84m3x3zgxhdnkg7",  annual: "PLN_0m5wy1ft9vnod1l"  },
-  basic: { monthly: "PLN_buxhygv575tkiqk", annual: "PLN_cxz7354mrvt36dq" },
-  plus:  { monthly: "PLN_189lnp9kfnufpf8",  annual: "PLN_y622ocywadkt9vk"  },
-  pro:   { monthly: "PLN_n70qtbslfrwn0xn",   annual: "PLN_m7dub8gd1m55a4m"   },
+  lite:  { monthly: "PLN_lite_monthly_code",  annual: "PLN_lite_annual_code"  },
+  basic: { monthly: "PLN_basic_monthly_code", annual: "PLN_basic_annual_code" },
+  plus:  { monthly: "PLN_plus_monthly_code",  annual: "PLN_plus_annual_code"  },
+  pro:   { monthly: "PLN_pro_monthly_code",   annual: "PLN_pro_annual_code"   },
 };
 
 // ── Plan Definitions ──────────────────────────────────────────

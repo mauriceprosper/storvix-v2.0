@@ -392,3 +392,37 @@
   .admin-sidebar > div:last-child { display: none !important; }
   .admin-main { padding: 20px 16px; }
 }
+
+/* ── Icon Picker (admin messaging) ─────────────────────────── */
+.icon-pick {
+  width: 38px; height: 38px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-card);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.125rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.icon-pick:hover { background: var(--admin-bg); }
+.icon-pick.selected {
+  border-color: var(--admin-accent);
+  background: rgba(0,102,255,0.08);
+  box-shadow: 0 0 0 2px rgba(0,102,255,0.12);
+}
+
+/* ── Broadcast list rows ───────────────────────────────────── */
+.broadcast-row {
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.broadcast-row-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.75rem; color: var(--admin-muted);
+  margin-bottom: 4px;
+}
+.broadcast-row-title { font-weight: 600; font-size: 0.9375rem; margin-bottom: 2px; }
+.broadcast-row-body  { font-size: 0.8125rem; color: var(--admin-muted); line-height: 1.45; }

@@ -91,6 +91,18 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isOwner(sellerId);
       }
+
+      // ── Notifications (in-app inbox) ──────────────────
+      // Cloud Functions create these via Admin SDK (bypasses rules).
+      // Owner can read all and only update the `read` field.
+      match /notifications/{notifId} {
+        allow read: if isOwner(sellerId) || isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin()
+          || (isOwner(sellerId)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
+        allow delete: if isOwner(sellerId) || isAdmin();
+      }
     }
 
     // ── Withdrawals (top-level) ──────────────────────────
@@ -98,6 +110,11 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
       allow read: if isAdmin() || (isSignedIn() && resource.data.sellerId == request.auth.uid);
       allow update, delete: if isAdmin();
+    }
+
+    // ── Admin Broadcasts (audit log of admin messages) ───
+    match /adminBroadcasts/{broadcastId} {
+      allow read, write: if isAdmin();
     }
 
     // ── Cart Sessions (abandoned cart tracking) ──────────
