@@ -237,3 +237,4 @@ export const callGenerateInvoice   = d => httpsCallable(functions, "generateInvo
 export const callSendNotification  = d => httpsCallable(functions, "sendNotification")(d);
 export const callBackfillWallets   = d => httpsCallable(functions, "backfillWallets")(d || {});
 export const callAdminSendMessage  = d => httpsCallable(functions, "adminSendMessage")(d);
+export const callListBanks         = ()=> httpsCallable(functions, "listBanks")();

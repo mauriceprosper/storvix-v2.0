@@ -350,6 +350,32 @@ exports.getDeliveryRates = onCall(CALLABLE_OPTS, async (request) => {
 // ═══════════════════════════════════════════════════════════════
 //  5. verifyBankAccount (Callable)
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  listBanks (Callable) — fetch live bank list from Paystack
+//  Result is cached for 24h on the client to avoid repeated calls
+// ═══════════════════════════════════════════════════════════════
+exports.listBanks = onCall(CALLABLE_OPTS, async () => {
+  try {
+    if (!PAYSTACK_SECRET) {
+      throw new HttpsError("failed-precondition", "Paystack secret not configured.");
+    }
+    const data = await paystackGet("/bank?country=nigeria&perPage=200");
+    if (!data.status) {
+      throw new HttpsError("internal", data.message || "Failed to fetch banks");
+    }
+    // Return only what the client needs
+    const banks = (data.data || [])
+      .filter(b => b.active !== false)
+      .map(b => ({ name: b.name, code: b.code, longcode: b.longcode || "" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { banks };
+  } catch (err) {
+    console.error("[listBanks] Error:", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err.message || "Failed to fetch banks");
+  }
+});
+
 exports.verifyBankAccount = onCall(CALLABLE_OPTS, async (request) => {
   try {
     const { accountNumber, bankCode } = request.data || {};

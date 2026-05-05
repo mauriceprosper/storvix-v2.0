@@ -10,9 +10,9 @@ import {
 import {
   toast, btnLoading, getParam, slugify, copyToClipboard,
   NIGERIAN_STATES, NIGERIAN_BANKS, PRODUCT_CATEGORIES, isValidPhone,
-  normalisePhone, debounce, storeUrl,
+  normalisePhone, debounce, storeUrl, getLiveBanks,
 } from "./utils.js";
-import { callVerifyBankAccount } from "./firebase-config.js";
+import { callVerifyBankAccount, callListBanks } from "./firebase-config.js";
 import { PAYSTACK_PUBLIC_KEY, STARTER_PACK } from "./plans.js";
 
 // ── State ──────────────────────────────────────────────────
@@ -77,15 +77,29 @@ function initStates() {
   });
 }
 
-// ── Init: Banks ─────────────────────────────────────────────
-function initBanks() {
+// ── Init: Banks (live list from Paystack) ──────────────────
+async function initBanks() {
   const sel = document.getElementById("bankSelect");
-  NIGERIAN_BANKS.forEach(b => {
-    const opt = document.createElement("option");
-    opt.value = b.code; opt.textContent = b.name;
-    opt.dataset.name = b.name;
-    sel.appendChild(opt);
-  });
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Loading banks…</option>';
+  try {
+    const banks = await getLiveBanks(callListBanks);
+    sel.innerHTML = '<option value="">Select your bank…</option>';
+    banks.forEach(b => {
+      const opt = document.createElement("option");
+      opt.value = b.code; opt.textContent = b.name;
+      opt.dataset.name = b.name;
+      sel.appendChild(opt);
+    });
+  } catch {
+    sel.innerHTML = '<option value="">Select your bank…</option>';
+    NIGERIAN_BANKS.forEach(b => {
+      const opt = document.createElement("option");
+      opt.value = b.code; opt.textContent = b.name;
+      opt.dataset.name = b.name;
+      sel.appendChild(opt);
+    });
+  }
 }
 
 // ── Init: Categories ────────────────────────────────────────

@@ -207,7 +207,7 @@
 import {
   auth, db,
   doc, getDoc, setDoc, updateDoc, getDocs, collection, query, orderBy, limit,
-  serverTimestamp, addDoc, callVerifyBankAccount,
+  serverTimestamp, addDoc, callVerifyBankAccount, callListBanks,
   onAuthStateChanged, onSnapshot,
 } from "./js/firebase-config.js";
 import {
@@ -215,7 +215,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { fmt, toast, NIGERIAN_BANKS } from "./js/utils.js";
+import { fmt, toast, NIGERIAN_BANKS, getLiveBanks } from "./js/utils.js";
 
 let currentUser = null;
 let referrer    = null;
@@ -419,8 +419,7 @@ function renderBankSection() {
         <div class="field">
           <label>Bank *</label>
           <select id="bankSelect" required>
-            <option value="">Select your bank…</option>
-            ${NIGERIAN_BANKS.map(b => `<option value="${b.code}" data-name="${b.name}">${b.name}</option>`).join("")}
+            <option value="">Loading banks…</option>
           </select>
         </div>
         <div class="field">
@@ -433,6 +432,19 @@ function renderBankSection() {
           <button type="button" class="btn-x" id="saveBankBtn" style="width:auto;padding:11px 16px;display:none">Save</button>
         </div>
       </form>`;
+
+    // Populate bank dropdown with live list
+    (async () => {
+      const sel = $("bankSelect");
+      try {
+        const banks = await getLiveBanks(callListBanks);
+        sel.innerHTML = '<option value="">Select your bank…</option>' +
+          banks.map(b => `<option value="${b.code}" data-name="${b.name.replace(/"/g, "&quot;")}">${b.name}</option>`).join("");
+      } catch {
+        sel.innerHTML = '<option value="">Select your bank…</option>' +
+          NIGERIAN_BANKS.map(b => `<option value="${b.code}" data-name="${b.name}">${b.name}</option>`).join("");
+      }
+    })();
 
     let verifiedData = null;
     $("verifyBankBtn").onclick = async () => {

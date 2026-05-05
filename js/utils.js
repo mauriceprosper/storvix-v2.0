@@ -226,3 +226,43 @@ export const PRODUCT_CATEGORIES = [
   "Fashion","Bags & Accessories","Beauty","Home & Decor","Electronics",
   "Books & Media","Health & Wellness","Gifts & Crafts","Kids & Baby","Sports","Other",
 ];
+
+// ── Live bank list from Paystack ──────────────────────────────
+// Cached in localStorage for 24h. Falls back to the static list if Paystack is unreachable.
+let _bankCache = null;
+const _BANK_CACHE_KEY = "storvix_banks_v1";
+const _BANK_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+export async function getLiveBanks(callListBanksFn) {
+  if (_bankCache) return _bankCache;
+
+  // Try localStorage cache
+  try {
+    const raw = localStorage.getItem(_BANK_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.t && (Date.now() - parsed.t) < _BANK_CACHE_TTL && Array.isArray(parsed.banks)) {
+        _bankCache = parsed.banks;
+        return parsed.banks;
+      }
+    }
+  } catch { /* ignore corrupt cache */ }
+
+  // Fetch fresh
+  try {
+    const res = await callListBanksFn();
+    const banks = res?.data?.banks;
+    if (Array.isArray(banks) && banks.length) {
+      _bankCache = banks;
+      try {
+        localStorage.setItem(_BANK_CACHE_KEY, JSON.stringify({ t: Date.now(), banks }));
+      } catch { /* localStorage full or disabled */ }
+      return banks;
+    }
+  } catch (err) {
+    console.warn("Live banks fetch failed, using static list:", err.message);
+  }
+
+  // Last-resort fallback
+  return NIGERIAN_BANKS;
+}

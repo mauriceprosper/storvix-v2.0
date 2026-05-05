@@ -8,13 +8,14 @@ import {
   getCustomers, getDiscounts, getPaymentLinks, getTransactions, getTestimonials,
   uploadImage, requestWithdrawal, logOut,
   doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, collection, serverTimestamp,
-  onSnapshot, callCreatePaymentLink, callVerifyBankAccount, writeBatch,
+  onSnapshot, callCreatePaymentLink, callVerifyBankAccount, callListBanks, writeBatch,
   query, where, orderBy, limit,
 } from "./firebase-config.js";
 import {
   fmt, toast, btnLoading, storeUrl, copyToClipboard, fmtDate, timeAgo,
   statusBadge, planBadge, openModal, closeModal, bindModalClose,
   NIGERIAN_BANKS, PRODUCT_CATEGORIES, readFileAsDataURL, debounce, normalisePhone,
+  getLiveBanks,
 } from "./utils.js";
 import { PLANS, PAYSTACK_PUBLIC_KEY, PAYSTACK_PLAN_CODES, canAccess, isAtLimit, UPGRADE_MESSAGES, getAccountStatus, STARTER_PACK } from "./plans.js";
 
@@ -1582,18 +1583,34 @@ document.getElementById("inboxMarkAllReadBtn")?.addEventListener("click", markAl
 // ═════════════════════════════════════════════════════════════
 let _bankVerifiedData = null;
 
-function initBankSection() {
-  // Populate bank dropdown
+async function initBankSection() {
+  // Populate bank dropdown — use live list from Paystack
   const sel = document.getElementById("bankNameSelect");
   if (sel && !sel.dataset.populated) {
-    NIGERIAN_BANKS.forEach(b => {
-      const opt = document.createElement("option");
-      opt.value = b.code;
-      opt.dataset.name = b.name;
-      opt.textContent = b.name;
-      sel.appendChild(opt);
-    });
-    sel.dataset.populated = "1";
+    sel.innerHTML = '<option value="">Loading banks…</option>';
+    try {
+      const banks = await getLiveBanks(callListBanks);
+      sel.innerHTML = '<option value="">Select your bank…</option>';
+      banks.forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = b.code;
+        opt.dataset.name = b.name;
+        opt.textContent = b.name;
+        sel.appendChild(opt);
+      });
+      sel.dataset.populated = "1";
+    } catch (err) {
+      // Last-resort fallback
+      sel.innerHTML = '<option value="">Select your bank…</option>';
+      NIGERIAN_BANKS.forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = b.code;
+        opt.dataset.name = b.name;
+        opt.textContent = b.name;
+        sel.appendChild(opt);
+      });
+      sel.dataset.populated = "1";
+    }
   }
 
   // Show current bank or edit form
