@@ -147,22 +147,42 @@ exports.paystackWebhook = onRequest({ region: FUNCTIONS_REGION }, async (req, re
 
       const seller = sellerSnap.data();
       const order  = orderSnap.data();
-      const amount = (event.data.amount / 100); // convert from kobo
-      const paystackFee = Math.round(amount * 0.015 + 100); // 1.5% + ₦100
       const sellerCredit = (order.subtotal || 0) + (order.deliveryFee || 0);
 
-      // Credit wallet
-      await sellerRef.update({
-        "wallet.balance":      FieldValue.increment(sellerCredit - paystackFee),
-        "wallet.totalEarned":  FieldValue.increment(sellerCredit - paystackFee),
-        orderCount:            FieldValue.increment(1),
-      });
+      // Idempotency check — if the client-side batch already credited (deterministic txn ID),
+      // skip wallet credit to avoid double-counting. Client uses `credit_${orderId}` as txn ID.
+      const txnId = `credit_${orderId}`;
+      const txnRef = sellerRef.collection("transactions").doc(txnId);
+      const txnExists = await txnRef.get();
 
-      // Record transaction
-      await sellerRef.collection("transactions").add({
-        type: "credit", amount: sellerCredit - paystackFee,
-        description: `Order ${order.orderNumber || orderId}`,
-        orderId, createdAt: FieldValue.serverTimestamp(),
+      if (!txnExists.exists) {
+        // Client batch didn't run (maybe browser closed) — webhook is the fallback
+        console.log(`[paystackWebhook] Crediting wallet for ${orderId} (client batch missed it)`);
+        await sellerRef.update({
+          "wallet.balance":      FieldValue.increment(sellerCredit),
+          "wallet.totalEarned":  FieldValue.increment(sellerCredit),
+          orderCount:            FieldValue.increment(1),
+        });
+        await txnRef.set({
+          type: "credit",
+          amount: sellerCredit,
+          description: `Order ${order.orderNumber || orderId}`,
+          orderId,
+          source: "webhook_fallback",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Client already credited — only need to bump orderCount on seller (idempotent via flag)
+        if (!order.webhookReceived) {
+          await sellerRef.update({ orderCount: FieldValue.increment(1) });
+        }
+        console.log(`[paystackWebhook] Order ${orderId} already credited by client, skipping`);
+      }
+
+      // Mark order as webhook-confirmed (regardless of credit path)
+      await orderRef.update({
+        webhookReceived: true,
+        webhookAt: FieldValue.serverTimestamp(),
       });
 
       // Update customer record
@@ -773,91 +793,69 @@ exports.onWithdrawalCreated = onDocumentCreated({
   document: "withdrawals/{withdrawalId}",
   region:    FUNCTIONS_REGION,
 }, async (event) => {
-  const w = event.data?.data();
-  const id = event.params.withdrawalId;
-  if (!w) return;
-
-  // Only auto-process if status is pending and not already processed
-  if (w.status !== "pending") {
-    console.log(`[auto-payout] Skipping ${id} (status=${w.status})`);
-    return;
-  }
-  if (!w.bank?.accountNumber || !w.bank?.bankCode) {
-    console.warn(`[auto-payout] ${id} missing bank details`);
-    await event.data.ref.update({
-      status: "rejected",
-      rejectedAt: FieldValue.serverTimestamp(),
-      rejectReason: "No valid bank account on file",
-    });
-    return;
-  }
-
   try {
-    // Step 1: create transfer recipient
-    const recipientRes = await paystackPost("/transferrecipient", {
-      type: "nuban",
-      name: w.bank.accountName,
-      account_number: w.bank.accountNumber,
-      bank_code: w.bank.bankCode,
-      currency: "NGN",
-    });
-    if (!recipientRes.status) {
-      throw new Error(recipientRes.message || "recipient creation failed");
+    const w = event.data?.data();
+    const id = event.params.withdrawalId;
+    if (!w) return;
+    if (w.status !== "pending") {
+      console.log(`[withdrawal] Skipping ${id} (status=${w.status})`);
+      return;
     }
 
-    // Step 2: initiate transfer
-    const transferRes = await paystackPost("/transfer", {
-      source: "balance",
-      reason: `Storvix payout — ${w.sellerId.slice(0,8)}`,
-      amount: w.netAmount * 100,
-      recipient: recipientRes.data.recipient_code,
-    });
-    if (!transferRes.status) {
-      throw new Error(transferRes.message || "transfer failed");
+    // Validate bank details exist
+    if (!w.bank?.accountNumber || !w.bank?.bankCode) {
+      console.warn(`[withdrawal] ${id} missing bank details — auto-rejecting`);
+      await event.data.ref.update({
+        status: "rejected",
+        rejectedAt: FieldValue.serverTimestamp(),
+        rejectReason: "No valid bank account on file",
+      });
+
+      // Refund the wallet (deduction was made client-side at request time)
+      await db.doc(`sellers/${w.sellerId}`).update({
+        "wallet.balance":        FieldValue.increment(w.amount),
+        "wallet.totalWithdrawn": FieldValue.increment(-w.amount),
+      });
+
+      await createNotification(w.sellerId, {
+        type: "payout_failed",
+        icon: "⚠️",
+        title: `Withdrawal of ₦${w.amount.toLocaleString()} rejected`,
+        body: "We couldn't find a verified bank account on your profile. Please add bank details and try again.",
+        link: "/dashboard.html?tab=settings",
+      });
+      return;
     }
 
-    // Update withdrawal to "processing" — final status comes from /transfer/finalize webhook (not used in test)
-    // For test mode, transfer is auto-finalized — mark as paid immediately
-    await event.data.ref.update({
-      status: "paid",       // test mode auto-completes
-      paystackTransferCode: transferRes.data?.transfer_code || "",
-      paystackRecipientCode: recipientRes.data?.recipient_code || "",
-      paidAt: FieldValue.serverTimestamp(),
-      method: "paystack_auto",
-    });
-
-    // Notify seller via in-app notification
+    // ── Manual flow: notify seller their request is queued, notify admins to process ──
     await createNotification(w.sellerId, {
-      type: "payout_success",
-      icon: "💸",
-      title: `Payout of ₦${w.amount.toLocaleString()} sent`,
-      body: `Your withdrawal has been transferred to ${w.bank.bankName} (${w.bank.accountNumber}). Net ₦${(w.netAmount).toLocaleString()}.`,
+      type: "payout_pending",
+      icon: "🕐",
+      title: `Withdrawal of ₦${w.amount.toLocaleString()} requested`,
+      body: `We've received your request. Funds will be sent to ${w.bank.bankName} (${w.bank.accountNumber}) within 24 hours.`,
       link: "/dashboard.html?tab=wallet",
     });
 
-    console.log(`[auto-payout] ${id} sent — transfer ${transferRes.data?.transfer_code}`);
+    // Notify all admins via their own notification feed
+    const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
+    for (const adminEmail of ADMIN_EMAILS) {
+      // Find admin's seller doc by email (admins are also sellers in our model)
+      const adminQuery = await db.collection("sellers").where("email", "==", adminEmail).limit(1).get();
+      if (!adminQuery.empty) {
+        const adminId = adminQuery.docs[0].id;
+        await createNotification(adminId, {
+          type: "admin_action_required",
+          icon: "🔔",
+          title: `New withdrawal request — ₦${w.amount.toLocaleString()}`,
+          body: `Seller ${w.sellerId.slice(0,8)} requested a payout to ${w.bank.bankName} (${w.bank.accountNumber}). Process via admin panel.`,
+          link: "/admin.html",
+        });
+      }
+    }
+
+    console.log(`[withdrawal] ${id} queued for manual admin processing`);
   } catch (err) {
-    console.error(`[auto-payout] ${id} failed:`, err.message);
-
-    // Mark as failed + refund wallet
-    await event.data.ref.update({
-      status: "rejected",
-      rejectedAt: FieldValue.serverTimestamp(),
-      rejectReason: `Auto-payout failed: ${err.message}`,
-    });
-
-    await db.doc(`sellers/${w.sellerId}`).update({
-      "wallet.balance":        FieldValue.increment(w.amount),
-      "wallet.totalWithdrawn": FieldValue.increment(-w.amount),
-    });
-
-    await createNotification(w.sellerId, {
-      type: "payout_failed",
-      icon: "⚠️",
-      title: `Payout of ₦${w.amount.toLocaleString()} failed`,
-      body: `${err.message}. The amount has been returned to your wallet.`,
-      link: "/dashboard.html?tab=wallet",
-    });
+    console.error("[onWithdrawalCreated] Error:", err);
   }
 });
 
@@ -1240,72 +1238,48 @@ exports.onReferrerWithdrawalCreated = onDocumentCreated({
   document: "referrers/{referrerId}/withdrawals/{withdrawalId}",
   region:    FUNCTIONS_REGION,
 }, async (event) => {
-  const w = event.data?.data();
-  const referrerId = event.params.referrerId;
-  const withdrawalId = event.params.withdrawalId;
-  if (!w || w.status !== "pending") return;
-
-  if (!w.bank?.accountNumber || !w.bank?.bankCode) {
-    await event.data.ref.update({
-      status: "rejected",
-      rejectedAt: FieldValue.serverTimestamp(),
-      rejectReason: "No bank details",
-    });
-    return;
-  }
-
-  // Validate balance
-  const refSnap = await db.doc(`referrers/${referrerId}`).get();
-  if (!refSnap.exists) return;
-  const referrer = refSnap.data();
-  if (referrer.balance < w.amount) {
-    await event.data.ref.update({
-      status: "rejected",
-      rejectedAt: FieldValue.serverTimestamp(),
-      rejectReason: "Insufficient balance",
-    });
-    return;
-  }
-
-  // Atomically deduct balance
-  await db.doc(`referrers/${referrerId}`).update({
-    balance: FieldValue.increment(-w.amount),
-  });
-
   try {
-    const recipientRes = await paystackPost("/transferrecipient", {
-      type: "nuban",
-      name: w.bank.accountName,
-      account_number: w.bank.accountNumber,
-      bank_code: w.bank.bankCode,
-      currency: "NGN",
-    });
-    if (!recipientRes.status) throw new Error(recipientRes.message);
+    const w = event.data?.data();
+    const referrerId = event.params.referrerId;
+    const withdrawalId = event.params.withdrawalId;
+    if (!w || w.status !== "pending") return;
 
-    const transferRes = await paystackPost("/transfer", {
-      source: "balance",
-      reason: `Storvix referral payout — ${referrerId.slice(0,8)}`,
-      amount: w.amount * 100,
-      recipient: recipientRes.data.recipient_code,
-    });
-    if (!transferRes.status) throw new Error(transferRes.message);
+    if (!w.bank?.accountNumber || !w.bank?.bankCode) {
+      await event.data.ref.update({
+        status: "rejected",
+        rejectedAt: FieldValue.serverTimestamp(),
+        rejectReason: "No bank details on file",
+      });
+      // Refund balance (was deducted client-side)
+      await db.doc(`referrers/${referrerId}`).update({
+        balance: FieldValue.increment(w.amount),
+      });
+      return;
+    }
 
-    await event.data.ref.update({
-      status: "paid",
-      paidAt: FieldValue.serverTimestamp(),
-      paystackTransferCode: transferRes.data?.transfer_code || "",
-    });
-    console.log(`[ref-withdraw] Paid ${referrerId.slice(0,8)} ₦${w.amount}`);
+    // Validate balance is still sufficient
+    const refSnap = await db.doc(`referrers/${referrerId}`).get();
+    if (!refSnap.exists) return;
+    const referrer = refSnap.data();
+
+    // ── Manual flow: notify admins, mark as queued ──
+    const ADMIN_EMAILS = ["usestorvix@gmail.com", "mauriceprosper1@gmail.com"];
+    for (const adminEmail of ADMIN_EMAILS) {
+      const adminQuery = await db.collection("sellers").where("email", "==", adminEmail).limit(1).get();
+      if (!adminQuery.empty) {
+        const adminId = adminQuery.docs[0].id;
+        await createNotification(adminId, {
+          type: "admin_action_required",
+          icon: "🔔",
+          title: `Referrer payout — ₦${w.amount.toLocaleString()}`,
+          body: `${referrer.name || "Referrer"} (${referrer.email || referrerId.slice(0,8)}) requested a payout to ${w.bank.bankName} (${w.bank.accountNumber}). Process manually.`,
+          link: "/admin.html",
+        });
+      }
+    }
+
+    console.log(`[ref-withdraw] ${withdrawalId} queued for manual admin processing`);
   } catch (err) {
-    console.error(`[ref-withdraw] Failed:`, err.message);
-    // Refund balance
-    await db.doc(`referrers/${referrerId}`).update({
-      balance: FieldValue.increment(w.amount),
-    });
-    await event.data.ref.update({
-      status: "rejected",
-      rejectedAt: FieldValue.serverTimestamp(),
-      rejectReason: err.message,
-    });
+    console.error("[onReferrerWithdrawalCreated] Error:", err);
   }
 });

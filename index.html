@@ -3,691 +3,509 @@
 <head>
   <meta charset="UTF-8">
   <script>
-    // Subdomain router — runs first, before anything else loads.
-    // If visitor is on a subdomain like amaka.storvix.ng, redirect to store page.
+    // Subdomain router — runs first.
+    // amaka.storvix.ng → /store.html?slug=amaka
     (function () {
       var h = window.location.hostname;
-      // Match: anything.storvix.ng (but not www.storvix.ng or storvix.ng itself)
       var m = h.match(/^([a-z0-9][a-z0-9-]*)\.storvix\.ng$/i);
       if (m && m[1].toLowerCase() !== "www") {
-        // Replace, not assign — so back button doesn't loop here
         window.location.replace("/store.html?slug=" + m[1] + window.location.search.replace(/^\?/, "&"));
       }
     })();
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Storvix — Open your branded online store in 10 minutes</title>
-  <meta name="description" content="The Nigerian-built e-commerce platform for product brands. Branded online stores, Paystack payments, WhatsApp orders, Shipbubble delivery. Start free.">
-  <meta property="og:title" content="Storvix — Sell smarter, not harder">
-  <meta property="og:description" content="Open your branded online store in 10 minutes. No tech skills needed.">
+  <title>Storvix — The Nigerian e-commerce platform that pays you back</title>
+  <meta name="description" content="Open your branded online store in 10 minutes. Pay ₦1,000 once, sell with full Pro features for 30 days. Built for Nigerian SMEs — Paystack, Shipbubble, custom subdomain.">
+  <meta property="og:title" content="Storvix — Sell smarter. Built in Lagos.">
+  <meta property="og:description" content="Open your branded online store in 10 minutes. ₦1,000 starter pack, no surprises.">
   <meta property="og:image" content="assets/og-image.png">
   <link rel="icon" href="assets/logo.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/landing.css">
+  <style>
+    /* Tweaks specific to this rewrite */
+    .dual-paths {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 880px;
+      margin: 32px auto 0;
+    }
+    @media (max-width: 720px) { .dual-paths { grid-template-columns: 1fr; } }
+    .path-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px 26px;
+      text-align: left;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .path-card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -16px rgba(15,23,42,0.12); }
+    .path-card .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+      align-self: flex-start;
+    }
+    .path-card.seller .tag { background: rgba(0,102,255,0.1); color: var(--blue); }
+    .path-card.affiliate .tag { background: rgba(16,185,129,0.1); color: #047857; }
+    .path-card h3 { font-size: 1.3rem; font-weight: 800; margin: 0 0 8px; letter-spacing: -0.01em; }
+    .path-card p { color: var(--slate); font-size: 0.9375rem; line-height: 1.55; margin: 0 0 18px; }
+    .path-card .price {
+      font-size: 0.875rem;
+      color: var(--ink);
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed var(--line);
+    }
+    .path-card ul { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 8px; }
+    .path-card ul li { font-size: 0.875rem; color: var(--slate); padding-left: 22px; position: relative; }
+    .path-card ul li::before { content: "✓"; position: absolute; left: 0; color: var(--blue); font-weight: 700; }
+    .path-card .btn { margin-top: auto; }
+
+    /* Pricing simplification */
+    .one-price-card {
+      max-width: 520px;
+      margin: 32px auto;
+      background: white;
+      border: 2px solid var(--blue);
+      border-radius: 20px;
+      padding: 36px 32px;
+      text-align: center;
+      box-shadow: 0 16px 40px -16px rgba(0,102,255,0.2);
+    }
+    .one-price-card .badge {
+      display: inline-block;
+      background: rgba(0,102,255,0.1);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .one-price-card .amount { font-size: 3.5rem; font-weight: 800; line-height: 1; letter-spacing: -0.025em; color: var(--ink); }
+    .one-price-card .amount .currency { font-size: 1.75rem; font-weight: 700; color: var(--slate); vertical-align: super; }
+    .one-price-card .duration { color: var(--slate); margin: 8px 0 24px; }
+
+    /* Affiliate CTA in pricing area */
+    .affiliate-banner {
+      max-width: 880px;
+      margin: 56px auto 0;
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 20px;
+    }
+    @media (max-width: 720px) { .affiliate-banner { grid-template-columns: 1fr; text-align: center; } }
+    .affiliate-banner h3 { font-size: 1.5rem; margin: 0 0 4px; font-weight: 800; letter-spacing: -0.01em; }
+    .affiliate-banner p { margin: 0; opacity: 0.9; font-size: 0.9375rem; }
+    .affiliate-banner .btn { background: white; color: var(--ink); white-space: nowrap; }
+    .affiliate-banner .btn:hover { background: rgba(255,255,255,0.95); }
+
+    /* Made in Nigeria */
+    .made-in-ng {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8125rem;
+      color: var(--slate);
+      font-weight: 500;
+    }
+    .ng-flag {
+      display: inline-flex;
+      width: 18px; height: 12px;
+      border-radius: 2px;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+    }
+    .ng-flag::before, .ng-flag::after {
+      content: ""; display: block; flex: 1;
+    }
+    .ng-flag::before { background: #008753; }
+    .ng-flag::after  { background: #008753; }
+    .ng-flag { background: white; }
+  </style>
 </head>
 <body>
 
-<!-- ─────────────────── NAV ─────────────────── -->
+<!-- ─────────────────  NAVIGATION  ───────────────── -->
 <nav class="nav">
-  <a href="#" class="nav-brand">
-    <span class="nav-brand-mark">S</span>
-    <span>Storvix</span>
+  <a href="/" class="nav-brand">
+    <img src="assets/logo.png" alt="" class="nav-brand-mark">
+    Storvix
   </a>
   <div class="nav-links">
-    <a href="#features">Features</a>
     <a href="#how">How it works</a>
+    <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
-    <a href="#faq">FAQ</a>
+    <a href="/refer.html">Refer & Earn</a>
   </div>
   <div class="nav-cta">
     <a href="auth.html" class="btn btn-ghost">Sign in</a>
-    <a href="auth.html?tab=signup" class="btn btn-primary">Get started <span style="opacity:.6">→</span></a>
+    <a href="auth.html?tab=signup" class="btn btn-primary">Open my store →</a>
   </div>
 </nav>
 
-<!-- ─────────────────── HERO ─────────────────── -->
+<!-- ─────────────────  HERO  ───────────────── -->
 <section class="hero">
   <div class="hero-pill">
     <span class="pill-tag">NEW</span>
-    <span>14 days free · No credit card needed</span>
+    Now live: Custom subdomains for every store
   </div>
 
   <h1 class="hero-headline">
-    Sell smarter, <em>not harder.</em>
+    Sell anything, anywhere in Nigeria — <em>without the chaos.</em>
   </h1>
 
   <p class="hero-sub">
-    Open your branded online store in ten minutes. Take Paystack payments, send Shipbubble deliveries, notify buyers on WhatsApp — all from one dashboard built for Nigerian product brands.
+    Stop juggling Instagram DMs, lost orders, and "send your account number" payments. Storvix gives you a real online store, accepts card and transfer payments instantly, tracks every order, and pays you out — all from one dashboard.
   </p>
 
   <div class="hero-actions">
     <a href="auth.html?tab=signup" class="btn btn-primary btn-lg btn-arrow">
-      Start free trial <span class="arrow">→</span>
+      Open my store today <span class="arrow">→</span>
     </a>
-    <a href="#how" class="btn btn-outline btn-lg">See how it works</a>
+    <a href="#how" class="btn btn-ghost btn-lg">See how it works</a>
   </div>
 
   <div class="hero-microcopy">
-    <span class="check">✓</span>
-    <span>Free for 14 days</span>
-    <span style="opacity:.4;margin:0 8px">·</span>
-    <span class="check">✓</span>
-    <span>0% commission, ever</span>
-    <span style="opacity:.4;margin:0 8px">·</span>
-    <span class="check">✓</span>
-    <span>Cancel anytime</span>
+    <span class="check">✓</span> ₦1,000 to start &nbsp;
+    <span class="check">✓</span> Live in 10 minutes &nbsp;
+    <span class="check">✓</span> No tech skills needed
   </div>
 
-  <!-- Dashboard mock -->
-  <div class="hero-mock">
-    <div class="hero-mock-frame">
-      <div class="mock-titlebar">
-        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-        <div class="url-bar">storvix.ng/dashboard</div>
-      </div>
-
-      <div class="mock-content">
-        <!-- Sidebar -->
-        <div class="mock-sidebar">
-          <div class="mock-nav-section-label">Main</div>
-          <div class="mock-nav-item active"><div class="nav-icon-box"></div>Overview</div>
-          <div class="mock-nav-item"><div class="nav-icon-box"></div>Orders</div>
-          <div class="mock-nav-item"><div class="nav-icon-box"></div>Products</div>
-          <div class="mock-nav-item"><div class="nav-icon-box"></div>Customers</div>
-          <div class="mock-nav-section-label">Sales</div>
-          <div class="mock-nav-item"><div class="nav-icon-box"></div>Discounts</div>
-          <div class="mock-nav-item"><div class="nav-icon-box"></div>Analytics</div>
-          <div class="mock-nav-section-label">Money</div>
-          <div class="mock-nav-item"><div class="nav-icon-box"></div>Wallet</div>
-        </div>
-
-        <!-- Main -->
-        <div class="mock-main">
-          <div class="mock-greeting">Welcome back, Amaka</div>
-          <div class="mock-greeting-sub">Here's what's happening with your store today</div>
-
-          <div class="mock-kpi-grid">
-            <div class="mock-kpi">
-              <div class="mock-kpi-label">Revenue</div>
-              <div class="mock-kpi-value">₦284,500</div>
-              <div class="mock-kpi-trend up">↑ 12% vs last week</div>
-            </div>
-            <div class="mock-kpi">
-              <div class="mock-kpi-label">Orders</div>
-              <div class="mock-kpi-value">47</div>
-              <div class="mock-kpi-trend up">↑ 8% vs last week</div>
-            </div>
-            <div class="mock-kpi">
-              <div class="mock-kpi-label">Wallet</div>
-              <div class="mock-kpi-value">₦126,200</div>
-              <div class="mock-kpi-trend flat">Ready to withdraw</div>
-            </div>
-          </div>
-
-          <div class="mock-chart-card">
-            <div class="mock-chart-title">Revenue · Last 14 days</div>
-            <svg class="mock-chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="chartGrad" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="#0066FF" stop-opacity="0.18"/>
-                  <stop offset="100%" stop-color="#0066FF" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <path d="M 0 70 L 30 65 L 60 60 L 90 70 L 120 50 L 150 55 L 180 40 L 210 35 L 240 45 L 270 30 L 300 35 L 330 20 L 360 25 L 400 15 L 400 100 L 0 100 Z" fill="url(#chartGrad)"/>
-              <path d="M 0 70 L 30 65 L 60 60 L 90 70 L 120 50 L 150 55 L 180 40 L 210 35 L 240 45 L 270 30 L 300 35 L 330 20 L 360 25 L 400 15" fill="none" stroke="#0066FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="400" cy="15" r="3.5" fill="#0066FF"/>
-              <circle cx="400" cy="15" r="6" fill="#0066FF" opacity="0.2"/>
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="mock-callout mock-callout-1">⚡ Order in 6 seconds</div>
-    <div class="mock-callout mock-callout-2">💸 Same-day payouts</div>
+  <div style="margin-top:18px">
+    <span class="made-in-ng">
+      <span class="ng-flag"></span>
+      Built in Lagos for Nigerian businesses
+    </span>
   </div>
 </section>
 
-<!-- ─────────────────── LOGOS ─────────────────── -->
-<section class="logos">
-  <div class="logos-label">Built on rails you already trust</div>
-  <div class="logos-grid">
-    <div class="logo-item"><div class="logo-mark" style="background:#3BB75E"></div>Paystack</div>
-    <div class="logo-item"><div class="logo-mark" style="background:#FF6B00"></div>Shipbubble</div>
-    <div class="logo-item"><div class="logo-mark" style="background:#25D366"></div>SendChamp</div>
-    <div class="logo-item"><div class="logo-mark" style="background:#FFA000"></div>Firebase</div>
+<!-- ─────────────────  THE PROBLEM  ───────────────── -->
+<section style="padding: 56px 24px; max-width: 880px; margin: 0 auto;">
+  <h2 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; text-align: center; margin: 0 0 16px;">
+    You've been running your business on <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--blue)">hard mode.</em>
+  </h2>
+  <p style="text-align: center; color: var(--slate); max-width: 620px; margin: 0 auto 40px; font-size: 1.0625rem; line-height: 1.6;">
+    Most Nigerian sellers are losing money to broken processes. Sound familiar?
+  </p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+    <div style="background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 14px; padding: 20px;">
+      <div style="font-size: 1.25rem; margin-bottom: 8px;">😩</div>
+      <div style="font-weight: 700; margin-bottom: 6px;">"Send your account number"</div>
+      <div style="font-size: 0.875rem; color: var(--slate); line-height: 1.5;">Customers ghost. You lose 40% of orders to payment friction.</div>
+    </div>
+    <div style="background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 14px; padding: 20px;">
+      <div style="font-size: 1.25rem; margin-bottom: 8px;">😵‍💫</div>
+      <div style="font-weight: 700; margin-bottom: 6px;">DMs everywhere</div>
+      <div style="font-size: 0.875rem; color: var(--slate); line-height: 1.5;">Orders scattered across WhatsApp, Instagram, calls. Half forgotten.</div>
+    </div>
+    <div style="background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 14px; padding: 20px;">
+      <div style="font-size: 1.25rem; margin-bottom: 8px;">🤬</div>
+      <div style="font-weight: 700; margin-bottom: 6px;">"Where's my order?"</div>
+      <div style="font-size: 0.875rem; color: var(--slate); line-height: 1.5;">Customers calling you at midnight asking for updates. No tracking.</div>
+    </div>
   </div>
+
+  <p style="text-align: center; color: var(--slate); margin: 32px auto 0; font-size: 1.0625rem; max-width: 540px;">
+    There's a better way. <strong style="color: var(--ink)">Storvix.</strong>
+  </p>
 </section>
 
-<!-- ─────────────────── HOW IT WORKS (Bento) ─────────────────── -->
-<section class="section" id="how">
-  <div class="section-narrow">
-    <div class="section-header">
-      <div class="section-eyebrow">How it works</div>
-      <h2 class="section-title">From signup to first sale, <em>fast.</em></h2>
-      <p class="section-sub">Five simple steps. No tech skills required. Most sellers go live in under 15 minutes.</p>
+<!-- ─────────────────  HOW IT WORKS  ───────────────── -->
+<section id="how" style="background: #FAFBFC; padding: 80px 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);">
+  <div style="max-width: 1080px; margin: 0 auto;">
+    <h2 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; text-align: center; margin: 0 0 12px;">
+      Live in 10 minutes. <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--blue)">Seriously.</em>
+    </h2>
+    <p style="text-align: center; color: var(--slate); margin: 0 auto 48px; max-width: 540px;">
+      Three steps. No developer. No subscription trap.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;">
+      <div style="background: white; border: 1px solid var(--line); border-radius: 16px; padding: 24px;">
+        <div style="width: 40px; height: 40px; background: var(--ink); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 16px;">1</div>
+        <h3 style="font-size: 1.125rem; font-weight: 800; margin: 0 0 8px;">Sign up &amp; pay ₦1,000</h3>
+        <p style="color: var(--slate); font-size: 0.9375rem; line-height: 1.5; margin: 0;">One starter payment unlocks 30 days of Pro. Then ₦1,000/month to continue. No hidden fees.</p>
+      </div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 16px; padding: 24px;">
+        <div style="width: 40px; height: 40px; background: var(--ink); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 16px;">2</div>
+        <h3 style="font-size: 1.125rem; font-weight: 800; margin: 0 0 8px;">Set up your store</h3>
+        <p style="color: var(--slate); font-size: 0.9375rem; line-height: 1.5; margin: 0;">Pick your subdomain (yourname.storvix.ng), upload your logo, add products. Branded, professional, yours.</p>
+      </div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 16px; padding: 24px;">
+        <div style="width: 40px; height: 40px; background: var(--ink); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 16px;">3</div>
+        <h3 style="font-size: 1.125rem; font-weight: 800; margin: 0 0 8px;">Share &amp; sell</h3>
+        <p style="color: var(--slate); font-size: 0.9375rem; line-height: 1.5; margin: 0;">Send your store link anywhere. Customers buy with card or transfer. Money lands in your wallet. You withdraw to your bank.</p>
+      </div>
     </div>
 
-    <div class="how-grid">
-
-      <!-- Step 1 — Signup (span 2) -->
-      <div class="how-card span-2">
-        <div class="how-step-num">01 · Sign up</div>
-        <h3>Email or Google</h3>
-        <p>Create your account in 20 seconds. No card, no commitment.</p>
-        <div class="diagram-mini">
-          <svg width="160" height="80" viewBox="0 0 160 80">
-            <rect x="10" y="20" width="140" height="40" rx="8" fill="white" stroke="#EAE7E0" stroke-width="1.2"/>
-            <rect x="20" y="30" width="80" height="6" rx="3" fill="#EAE7E0"/>
-            <rect x="20" y="42" width="55" height="6" rx="3" fill="#EAE7E0"/>
-            <rect x="115" y="30" width="28" height="20" rx="6" fill="#0066FF"/>
-            <text x="129" y="43" font-family="Inter" font-size="9" font-weight="600" fill="white" text-anchor="middle">→</text>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Step 2 — Pick plan (span 2) -->
-      <div class="how-card span-2">
-        <div class="how-step-num">02 · Plan</div>
-        <h3>Pick a plan</h3>
-        <p>14 days free on every plan. Card optional.</p>
-        <div class="diagram-mini">
-          <svg width="180" height="80" viewBox="0 0 180 80">
-            <rect x="5" y="10" width="50" height="60" rx="8" fill="white" stroke="#EAE7E0"/>
-            <rect x="65" y="5" width="50" height="70" rx="8" fill="white" stroke="#0066FF" stroke-width="1.5"/>
-            <rect x="125" y="10" width="50" height="60" rx="8" fill="white" stroke="#EAE7E0"/>
-            <rect x="13" y="20" width="34" height="4" rx="2" fill="#9CA3AF"/>
-            <rect x="13" y="30" width="20" height="8" rx="2" fill="#0A0E1A"/>
-            <rect x="73" y="15" width="34" height="4" rx="2" fill="#0066FF"/>
-            <rect x="73" y="25" width="22" height="10" rx="2" fill="#0A0E1A"/>
-            <rect x="73" y="50" width="34" height="14" rx="3" fill="#0066FF"/>
-            <rect x="133" y="20" width="34" height="4" rx="2" fill="#9CA3AF"/>
-            <rect x="133" y="30" width="20" height="8" rx="2" fill="#0A0E1A"/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Step 3 — Setup (span 2) -->
-      <div class="how-card span-2">
-        <div class="how-step-num">03 · Setup</div>
-        <h3>Brand your store</h3>
-        <p>Logo, colour, URL, bank — five minutes.</p>
-        <div class="diagram-mini">
-          <svg width="160" height="80" viewBox="0 0 160 80">
-            <rect x="10" y="10" width="140" height="60" rx="8" fill="white" stroke="#EAE7E0"/>
-            <circle cx="35" cy="35" r="14" fill="#E8F0FF"/>
-            <text x="35" y="40" font-family="Instrument Serif" font-size="16" fill="#0066FF" text-anchor="middle" font-style="italic">A</text>
-            <rect x="55" y="25" width="60" height="6" rx="3" fill="#0A0E1A"/>
-            <rect x="55" y="36" width="40" height="4" rx="2" fill="#9CA3AF"/>
-            <circle cx="125" cy="33" r="5" fill="#0066FF"/>
-            <circle cx="138" cy="33" r="5" fill="#FFA000"/>
-            <rect x="20" y="55" width="120" height="8" rx="3" fill="#F0EDE6"/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Step 4 — Add products (span 3) -->
-      <div class="how-card span-3">
-        <div class="how-step-num">04 · Products</div>
-        <h3>Add what you sell</h3>
-        <p>Photos, prices, stock. Live on your storefront the moment you save — visible to anyone with the link.</p>
-        <div class="diagram-mini">
-          <svg width="280" height="100" viewBox="0 0 280 100">
-            <rect x="10" y="10" width="80" height="80" rx="8" fill="white" stroke="#EAE7E0"/>
-            <rect x="20" y="20" width="60" height="40" rx="4" fill="#F4F8FF"/>
-            <rect x="20" y="65" width="40" height="5" rx="2" fill="#0A0E1A"/>
-            <rect x="20" y="74" width="28" height="4" rx="2" fill="#0066FF"/>
-
-            <rect x="100" y="10" width="80" height="80" rx="8" fill="white" stroke="#EAE7E0"/>
-            <rect x="110" y="20" width="60" height="40" rx="4" fill="#FFF5E8"/>
-            <rect x="110" y="65" width="46" height="5" rx="2" fill="#0A0E1A"/>
-            <rect x="110" y="74" width="28" height="4" rx="2" fill="#0066FF"/>
-
-            <rect x="190" y="10" width="80" height="80" rx="8" fill="white" stroke="#EAE7E0" stroke-dasharray="3 3"/>
-            <line x1="230" y1="40" x2="230" y2="60" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
-            <line x1="220" y1="50" x2="240" y2="50" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
-            <text x="230" y="78" font-family="Inter" font-size="9" fill="#9CA3AF" text-anchor="middle">Add</text>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Step 5 — Get paid (span 3) -->
-      <div class="how-card span-3">
-        <div class="how-step-num">05 · Get paid</div>
-        <h3>Money in your wallet</h3>
-        <p>Buyers pay via Paystack, you receive Naira instantly. Withdraw anytime — Plus & Pro plans get same-day payouts.</p>
-        <div class="diagram-mini">
-          <svg width="280" height="100" viewBox="0 0 280 100">
-            <!-- Buyer -->
-            <circle cx="40" cy="50" r="22" fill="#F4F8FF" stroke="#E8F0FF"/>
-            <text x="40" y="56" font-family="Instrument Serif" font-size="20" fill="#0066FF" text-anchor="middle" font-style="italic">T</text>
-            <text x="40" y="88" font-family="Inter" font-size="9" fill="#9CA3AF" text-anchor="middle">Buyer</text>
-
-            <!-- Arrow 1 -->
-            <line x1="65" y1="50" x2="115" y2="50" stroke="#0066FF" stroke-width="1.5" stroke-dasharray="3 3"/>
-            <polygon points="115,46 122,50 115,54" fill="#0066FF"/>
-            <text x="90" y="42" font-family="Inter" font-size="9" fill="#0066FF" text-anchor="middle" font-weight="600">₦</text>
-
-            <!-- Storvix -->
-            <rect x="125" y="28" width="44" height="44" rx="10" fill="#0A0E1A"/>
-            <text x="147" y="55" font-family="Inter" font-size="20" font-weight="700" fill="white" text-anchor="middle">S</text>
-            <text x="147" y="88" font-family="Inter" font-size="9" fill="#9CA3AF" text-anchor="middle">Storvix</text>
-
-            <!-- Arrow 2 -->
-            <line x1="174" y1="50" x2="224" y2="50" stroke="#0066FF" stroke-width="1.5" stroke-dasharray="3 3"/>
-            <polygon points="224,46 231,50 224,54" fill="#0066FF"/>
-            <text x="200" y="42" font-family="Inter" font-size="9" fill="#0066FF" text-anchor="middle" font-weight="600">Bank</text>
-
-            <!-- You -->
-            <circle cx="250" cy="50" r="22" fill="#E8F0FF" stroke="#0066FF" stroke-width="1.5"/>
-            <text x="250" y="56" font-family="Instrument Serif" font-size="20" fill="#0066FF" text-anchor="middle" font-style="italic">A</text>
-            <text x="250" y="88" font-family="Inter" font-size="9" fill="#0A0E1A" text-anchor="middle" font-weight="500">You</text>
-          </svg>
-        </div>
-      </div>
-
+    <div style="text-align: center; margin-top: 40px;">
+      <a href="auth.html?tab=signup" class="btn btn-primary btn-lg btn-arrow">
+        Start now — ₦1,000 <span class="arrow">→</span>
+      </a>
     </div>
   </div>
 </section>
 
-<!-- ─────────────────── FEATURE ROWS ─────────────────── -->
-<section class="features-section section" id="features">
-  <div class="section-narrow">
-    <div class="section-header center">
-      <div class="section-eyebrow">Features</div>
-      <h2 class="section-title">Everything you need.<br><em>nothing you don't.</em></h2>
+<!-- ─────────────────  FEATURES (what you actually get)  ───────────────── -->
+<section id="features" style="padding: 80px 24px;">
+  <div style="max-width: 1080px; margin: 0 auto;">
+    <h2 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; text-align: center; margin: 0 0 12px;">
+      Everything you need. <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--blue)">Nothing you don't.</em>
+    </h2>
+    <p style="text-align: center; color: var(--slate); margin: 0 auto 48px; max-width: 540px;">
+      Built specifically for Nigerian SMEs. No bloat. No "enterprise tier."
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px;">
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">🛍️</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Branded storefront</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Your own subdomain (you.storvix.ng), your logo, your products. Looks like a real online business.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">💳</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Paystack payments</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Card, transfer, USSD. Money settles in your Storvix wallet within seconds, not days.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">📦</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Order tracking</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Buyers get a tracking link. No more "where's my order" calls. Update status from your dashboard.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">🚚</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Delivery built-in</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Smart delivery rates by state. Use your own dispatch riders or third-party — your call.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">🏷️</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Coupons &amp; discounts</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Run promos. Cap usage. Set minimums. Automatic discount codes that actually work.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">🔗</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Payment links</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Create a link for any amount. Send it. Get paid. Like Selar but you keep more.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">👥</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Customer database</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Every buyer auto-saved. See lifetime value, repeat orders, top spenders.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">💸</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Direct payouts</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Withdraw to your Nigerian bank account anytime. 1% fee, capped at ₦100. Your money, your timeline.</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid var(--line); border-radius: 16px;">
+        <div style="font-size: 1.5rem; margin-bottom: 12px;">🎁</div>
+        <h4 style="font-size: 1rem; font-weight: 800; margin: 0 0 6px;">Refer &amp; earn</h4>
+        <p style="color: var(--slate); font-size: 0.875rem; line-height: 1.55; margin: 0;">Get ₦200 every time someone signs up using your code. Built into your dashboard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────  PRICING  ───────────────── -->
+<section id="pricing" style="background: #FAFBFC; padding: 80px 24px; border-top: 1px solid var(--line);">
+  <div style="max-width: 880px; margin: 0 auto; text-align: center;">
+    <h2 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 12px;">
+      One price. <em style="font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--blue)">Everything included.</em>
+    </h2>
+    <p style="color: var(--slate); margin: 0 auto 32px; max-width: 540px; font-size: 1.0625rem;">
+      No hidden fees. No "premium" upsells. No expensive enterprise tier. Just Storvix.
+    </p>
+
+    <div class="one-price-card">
+      <div class="badge">Starter Pack</div>
+      <div class="amount"><span class="currency">₦</span>1,000</div>
+      <div class="duration">first 30 days · all features unlocked</div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; font-size: 0.875rem; padding: 18px; background: #FAFBFC; border-radius: 12px; margin-bottom: 20px;">
+        <div>✓ Unlimited products</div>
+        <div>✓ Custom subdomain</div>
+        <div>✓ Coupons</div>
+        <div>✓ Payment links</div>
+        <div>✓ Order tracking</div>
+        <div>✓ Customer database</div>
+        <div>✓ Direct payouts</div>
+        <div>✓ Sales analytics</div>
+      </div>
+
+      <a href="auth.html?tab=signup" class="btn btn-primary btn-lg btn-block btn-arrow" style="display: flex; justify-content: center;">
+        Start my store — ₦1,000 <span class="arrow">→</span>
+      </a>
+      <p style="font-size: 0.8125rem; color: var(--slate); margin: 14px 0 0;">After 30 days: pick a plan from ₦1,000/month. Cancel anytime.</p>
     </div>
 
-    <!-- Row 1: Branded storefront -->
-    <div class="feature-row">
+    <div class="affiliate-banner">
       <div>
-        <h3>Your own <em>branded</em> storefront</h3>
-        <p>Not a marketplace. Not a profile. A real online store with your URL, your logo, your brand colour. Customers trust the name they came for.</p>
-        <ul class="feature-bullet-list">
-          <li>Custom slug at <strong>your-store.storvix.ng</strong></li>
-          <li>Live cart, instant checkout, mobile-first</li>
-          <li>Hide all Storvix branding (Basic plan and up)</li>
-        </ul>
+        <h3>Not ready to sell? Earn ₦200 per referral.</h3>
+        <p>Refer business owners to Storvix. ₦200 per signup. Withdraw at ₦3,000.</p>
       </div>
-      <div class="diagram-card">
-        <svg width="100%" viewBox="0 0 360 240" style="display:block">
-          <!-- Browser frame -->
-          <rect x="0" y="0" width="360" height="240" rx="14" fill="white" stroke="#EAE7E0"/>
-          <rect x="0" y="0" width="360" height="32" rx="14" fill="#FAF9F6"/>
-          <rect x="0" y="18" width="360" height="14" fill="#FAF9F6"/>
-          <line x1="0" y1="32" x2="360" y2="32" stroke="#EAE7E0"/>
-          <circle cx="14" cy="16" r="4" fill="#E5E2DA"/>
-          <circle cx="28" cy="16" r="4" fill="#E5E2DA"/>
-          <circle cx="42" cy="16" r="4" fill="#E5E2DA"/>
-          <rect x="80" y="9" width="200" height="14" rx="3" fill="white" stroke="#EAE7E0"/>
-          <text x="180" y="19" font-family="Inter" font-size="9" fill="#0066FF" text-anchor="middle" font-weight="500">amaka-closet.storvix.ng</text>
-
-          <!-- Storefront banner -->
-          <rect x="20" y="50" width="320" height="80" rx="10" fill="#0066FF"/>
-          <text x="180" y="85" font-family="Instrument Serif" font-size="24" fill="white" text-anchor="middle" font-style="italic">Amaka's Closet</text>
-          <text x="180" y="105" font-family="Inter" font-size="11" fill="rgba(255,255,255,0.85)" text-anchor="middle">Fashion that fits your vibe</text>
-
-          <!-- Products -->
-          <rect x="20" y="145" width="100" height="80" rx="8" fill="white" stroke="#EAE7E0"/>
-          <rect x="30" y="155" width="80" height="48" rx="4" fill="#F4F8FF"/>
-          <rect x="30" y="208" width="50" height="4" rx="2" fill="#0A0E1A"/>
-          <rect x="30" y="216" width="32" height="3" rx="2" fill="#0066FF"/>
-
-          <rect x="130" y="145" width="100" height="80" rx="8" fill="white" stroke="#EAE7E0"/>
-          <rect x="140" y="155" width="80" height="48" rx="4" fill="#FFF5E8"/>
-          <rect x="140" y="208" width="50" height="4" rx="2" fill="#0A0E1A"/>
-          <rect x="140" y="216" width="32" height="3" rx="2" fill="#0066FF"/>
-
-          <rect x="240" y="145" width="100" height="80" rx="8" fill="white" stroke="#EAE7E0"/>
-          <rect x="250" y="155" width="80" height="48" rx="4" fill="#F0EDE6"/>
-          <rect x="250" y="208" width="50" height="4" rx="2" fill="#0A0E1A"/>
-          <rect x="250" y="216" width="32" height="3" rx="2" fill="#0066FF"/>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Row 2: Payments -->
-    <div class="feature-row reverse">
-      <div>
-        <h3>Paystack-powered <em>checkout</em></h3>
-        <p>Buyers pay with card, bank transfer, USSD, or mobile money. Local rails, no friction. We never touch your money — Paystack does.</p>
-        <ul class="feature-bullet-list">
-          <li>Zero commission. Ever.</li>
-          <li>0% chargeback risk to you</li>
-          <li>Buyers covered by Paystack's fraud protection</li>
-        </ul>
-      </div>
-      <div class="diagram-card">
-        <svg width="100%" viewBox="0 0 360 240" style="display:block">
-          <!-- Receipt -->
-          <rect x="60" y="20" width="240" height="200" rx="12" fill="white" stroke="#EAE7E0"/>
-          <text x="180" y="48" font-family="Instrument Serif" font-size="20" fill="#0A0E1A" text-anchor="middle">Receipt</text>
-          <line x1="80" y1="60" x2="280" y2="60" stroke="#EAE7E0"/>
-
-          <!-- Items -->
-          <text x="80" y="80" font-family="Inter" font-size="10" fill="#4A5365">Floral midi dress</text>
-          <text x="280" y="80" font-family="Inter" font-size="10" fill="#0A0E1A" text-anchor="end" font-weight="500">₦18,000</text>
-
-          <text x="80" y="100" font-family="Inter" font-size="10" fill="#4A5365">Strap heels</text>
-          <text x="280" y="100" font-family="Inter" font-size="10" fill="#0A0E1A" text-anchor="end" font-weight="500">₦12,000</text>
-
-          <text x="80" y="120" font-family="Inter" font-size="10" fill="#4A5365">Delivery (GIG)</text>
-          <text x="280" y="120" font-family="Inter" font-size="10" fill="#0A0E1A" text-anchor="end" font-weight="500">₦2,500</text>
-
-          <line x1="80" y1="135" x2="280" y2="135" stroke="#EAE7E0"/>
-
-          <text x="80" y="155" font-family="Inter" font-size="11" font-weight="600" fill="#0A0E1A">Total</text>
-          <text x="280" y="155" font-family="Inter" font-size="14" font-weight="700" fill="#0A0E1A" text-anchor="end">₦32,500</text>
-
-          <!-- Pay button -->
-          <rect x="80" y="175" width="200" height="32" rx="8" fill="#0066FF"/>
-          <text x="180" y="195" font-family="Inter" font-size="12" font-weight="600" fill="white" text-anchor="middle">Pay with Paystack →</text>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Row 3: WhatsApp + Delivery -->
-    <div class="feature-row">
-      <div>
-        <h3>WhatsApp orders, <em>delivery sorted</em></h3>
-        <p>Every order auto-sends a WhatsApp confirmation. Live delivery rates from GIG, Kwik, and Sendbox at checkout. You ship, we tell the buyer.</p>
-        <ul class="feature-bullet-list">
-          <li>Instant order confirmations to buyer + seller</li>
-          <li>Tracking link auto-sent on shipment</li>
-          <li>Delivery fee credited to your wallet to arrange logistics</li>
-        </ul>
-      </div>
-      <div class="diagram-card">
-        <svg width="100%" viewBox="0 0 360 240" style="display:block">
-          <!-- WhatsApp chat mock -->
-          <rect x="20" y="20" width="320" height="200" rx="14" fill="#F4F8FF" stroke="#EAE7E0"/>
-          <rect x="20" y="20" width="320" height="38" rx="14" fill="#0066FF"/>
-          <rect x="20" y="44" width="320" height="14" fill="#0066FF"/>
-          <circle cx="46" cy="39" r="11" fill="white"/>
-          <text x="46" y="44" font-family="Inter" font-size="14" fill="#0066FF" text-anchor="middle" font-weight="700">A</text>
-          <text x="65" y="36" font-family="Inter" font-size="11" fill="white" font-weight="600">Amaka's Closet</text>
-          <text x="65" y="48" font-family="Inter" font-size="9" fill="rgba(255,255,255,0.75)">online</text>
-
-          <!-- Message 1 -->
-          <rect x="35" y="74" width="200" height="50" rx="10" fill="white" stroke="#EAE7E0"/>
-          <text x="44" y="89" font-family="Inter" font-size="9" font-weight="600" fill="#0066FF">Order STX-A4F8 confirmed 🎉</text>
-          <text x="44" y="103" font-family="Inter" font-size="9" fill="#4A5365">Floral dress + strap heels</text>
-          <text x="44" y="116" font-family="Inter" font-size="9" fill="#0A0E1A" font-weight="600">Total: ₦32,500</text>
-
-          <!-- Message 2 (right) -->
-          <rect x="125" y="135" width="210" height="40" rx="10" fill="#0066FF"/>
-          <text x="134" y="150" font-family="Inter" font-size="9" font-weight="600" fill="white">📦 Your order is on the way!</text>
-          <text x="134" y="164" font-family="Inter" font-size="9" fill="rgba(255,255,255,0.85)">Track: gig.ng/track/A4F8</text>
-
-          <!-- Typing indicator -->
-          <rect x="35" y="185" width="80" height="22" rx="11" fill="white" stroke="#EAE7E0"/>
-          <circle cx="50" cy="196" r="2" fill="#9CA3AF"/>
-          <circle cx="58" cy="196" r="2" fill="#9CA3AF"/>
-          <circle cx="66" cy="196" r="2" fill="#9CA3AF"/>
-        </svg>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ─────────────────── PRICING ─────────────────── -->
-<section class="section" id="pricing">
-  <div class="section-narrow">
-    <div class="section-header center">
-      <div class="section-eyebrow">Pricing</div>
-      <h2 class="section-title">No commission. <em>Just a flat fee.</em></h2>
-      <p class="section-sub">Pick a plan that scales with you. Start free for 14 days. Cancel anytime.</p>
-      <div style="margin-top:32px">
-        <div class="billing-toggle">
-          <button class="bt-btn active" data-billing="monthly">Monthly</button>
-          <button class="bt-btn" data-billing="annual">Annual <span class="save-badge">−17%</span></button>
-        </div>
-      </div>
-    </div>
-
-    <div class="pricing-grid">
-
-      <div class="price-card">
-        <div class="price-name">Lite</div>
-        <div class="price-tag">For getting started</div>
-        <div class="price-amount" data-monthly="2,100" data-annual="1,750">₦2,100<span class="per">/mo</span></div>
-        <div class="price-divider"></div>
-        <ul class="price-features">
-          <li>25 products</li>
-          <li>Storefront + Paystack</li>
-          <li>WhatsApp notifications</li>
-          <li>24-hour payouts</li>
-          <li>Shipbubble delivery</li>
-        </ul>
-        <a href="auth.html?tab=signup&plan=lite" class="btn btn-outline">Start free trial</a>
-      </div>
-
-      <div class="price-card">
-        <div class="price-name">Basic</div>
-        <div class="price-tag">For growing brands</div>
-        <div class="price-amount" data-monthly="4,850" data-annual="4,042">₦4,850<span class="per">/mo</span></div>
-        <div class="price-divider"></div>
-        <ul class="price-features">
-          <li>100 products</li>
-          <li>No Storvix branding</li>
-          <li>Coupon codes</li>
-          <li>Analytics dashboards</li>
-          <li>Payment links + invoices</li>
-          <li>Priority payouts</li>
-        </ul>
-        <a href="auth.html?tab=signup&plan=basic" class="btn btn-outline">Start free trial</a>
-      </div>
-
-      <div class="price-card featured">
-        <div class="price-name">Plus</div>
-        <div class="price-tag">For serious sellers</div>
-        <div class="price-amount" data-monthly="9,800" data-annual="8,167">₦9,800<span class="per">/mo</span></div>
-        <div class="price-divider"></div>
-        <ul class="price-features">
-          <li>1,000 products</li>
-          <li>2 staff accounts</li>
-          <li>Cart tracking</li>
-          <li>Abandoned cart WhatsApp</li>
-          <li>Global currencies (USD, GBP)</li>
-          <li>Same-day payouts</li>
-          <li>90-day analytics</li>
-        </ul>
-        <a href="auth.html?tab=signup&plan=plus" class="btn btn-blue">Start free trial</a>
-      </div>
-
-      <div class="price-card">
-        <div class="price-name">Pro</div>
-        <div class="price-tag">For maximum power</div>
-        <div class="price-amount" data-monthly="15,600" data-annual="13,000">₦15,600<span class="per">/mo</span></div>
-        <div class="price-divider"></div>
-        <ul class="price-features">
-          <li>Unlimited products</li>
-          <li>5 staff accounts</li>
-          <li>CSV exports</li>
-          <li>Sales reports</li>
-          <li>Dedicated WhatsApp support</li>
-        </ul>
-        <a href="auth.html?tab=signup&plan=pro" class="btn btn-outline">Start free trial</a>
-      </div>
-
+      <a href="/refer.html" class="btn btn-lg">Become an affiliate →</a>
     </div>
   </div>
 </section>
 
-<!-- ─────────────────── PROOF ─────────────────── -->
-<section class="proof-section section">
-  <div class="section-narrow">
-    <div class="section-header center">
-      <div class="section-eyebrow">Loved by sellers</div>
-      <h2 class="section-title">From WhatsApp DMs to <em>real online stores.</em></h2>
-    </div>
+<!-- ─────────────────  WHO IT'S FOR  ───────────────── -->
+<section style="padding: 80px 24px;">
+  <div style="max-width: 880px; margin: 0 auto;">
+    <h2 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; text-align: center; margin: 0 0 12px;">
+      Choose your path
+    </h2>
+    <p style="text-align: center; color: var(--slate); margin: 0 0 32px;">
+      Two ways to make money on Storvix.
+    </p>
 
-    <div class="proof-grid">
-      <div class="proof-card">
-        <div class="proof-stars">★★★★★</div>
-        <p class="proof-quote">"I was selling on Instagram for two years. Storvix gave me an actual brand. Customers trust the URL."</p>
-        <div class="proof-author">
-          <div class="proof-avatar">A</div>
-          <div>
-            <div class="proof-author-name">Amaka Okonkwo</div>
-            <div class="proof-author-role">Fashion · Lagos</div>
-          </div>
-        </div>
+    <div class="dual-paths">
+      <div class="path-card seller">
+        <span class="tag">For business owners</span>
+        <h3>Sell on Storvix</h3>
+        <p>You make products or offer services. You want a real online store, not just a WhatsApp DM list. Storvix is your store, payments, delivery, and customer base — in one place.</p>
+        <div class="price">₦1,000 starter pack · 30 days Pro</div>
+        <ul>
+          <li>Branded storefront on your subdomain</li>
+          <li>Card &amp; transfer payments via Paystack</li>
+          <li>Order tracking your buyers can use</li>
+          <li>Withdraw to your Nigerian bank account</li>
+        </ul>
+        <a href="auth.html?tab=signup" class="btn btn-primary btn-block btn-arrow" style="display:flex;justify-content:center">
+          Open my store <span class="arrow">→</span>
+        </a>
       </div>
 
-      <div class="proof-card">
-        <div class="proof-stars">★★★★★</div>
-        <p class="proof-quote">"WhatsApp DMs were chaos. Now every order comes with a Paystack receipt. I sleep better."</p>
-        <div class="proof-author">
-          <div class="proof-avatar">T</div>
-          <div>
-            <div class="proof-author-name">Tunde Adeyemi</div>
-            <div class="proof-author-role">Electronics · Abuja</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="proof-card">
-        <div class="proof-stars">★★★★★</div>
-        <p class="proof-quote">"The dashboard is clean. Payouts are fast. The buyer flow is what big brands use."</p>
-        <div class="proof-author">
-          <div class="proof-avatar">C</div>
-          <div>
-            <div class="proof-author-name">Chidinma Eze</div>
-            <div class="proof-author-role">Beauty · Port Harcourt</div>
-          </div>
-        </div>
+      <div class="path-card affiliate">
+        <span class="tag">For everyone else</span>
+        <h3>Refer &amp; earn</h3>
+        <p>You don't run a business — but you know plenty of people who do. Share your unique link. Every business owner who signs up earns you ₦200. Withdraw at ₦3,000.</p>
+        <div class="price">Free to join · No quotas · No interview</div>
+        <ul>
+          <li>₦200 per paid signup</li>
+          <li>Custom referral code from your name</li>
+          <li>Withdraw anytime once balance ≥ ₦3,000</li>
+          <li>Track earnings in real time</li>
+        </ul>
+        <a href="/refer.html" class="btn btn-outline btn-block btn-arrow" style="display:flex;justify-content:center">
+          Get my referral code <span class="arrow">→</span>
+        </a>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─────────────────── FAQ ─────────────────── -->
-<section class="section" id="faq">
-  <div class="section-narrow">
-    <div class="section-header center">
-      <div class="section-eyebrow">FAQ</div>
-      <h2 class="section-title">Questions, <em>answered.</em></h2>
-    </div>
+<!-- ─────────────────  FAQ  ───────────────── -->
+<section style="padding: 64px 24px; background: #FAFBFC; border-top: 1px solid var(--line);">
+  <div style="max-width: 720px; margin: 0 auto;">
+    <h2 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.025em; text-align: center; margin: 0 0 32px;">
+      Questions, answered
+    </h2>
 
-    <div class="faq-list">
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">How does the 14-day free trial work?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Sign up, pick any plan, get full access for 14 days — no credit card needed. After trial, you'll be prompted to subscribe to keep your store live. Pay nothing during trial. No automatic billing.</div></div>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">Is the ₦1,000 a subscription or one-time?</div>
+        <p style="color: var(--slate); margin: 0; font-size: 0.9375rem; line-height: 1.55;">
+          One-time. You pay ₦1,000 to start, get full Pro features for 30 days, then choose a plan starting at ₦1,000/month if you want to continue. Or stop. Your call.
+        </p>
       </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">What's the commission on sales?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Zero. We take 0% commission. You pay a fixed monthly subscription, and your buyers pay a small ₦100 processing fee per order. The rest goes straight to your wallet.</div></div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">How does the money reach me?</div>
+        <p style="color: var(--slate); margin: 0; font-size: 0.9375rem; line-height: 1.55;">
+          Buyers pay via Paystack. The money settles in your Storvix wallet within seconds. You withdraw to your Nigerian bank account whenever you want — admin processes withdrawals within 24 hours.
+        </p>
       </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">How fast are payouts?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Lite: 24 hours. Basic: priority. Plus and Pro: same-day. Withdrawals are powered by the Paystack Transfer API and arrive in your bank account directly.</div></div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">What does Storvix charge per transaction?</div>
+        <p style="color: var(--slate); margin: 0; font-size: 0.9375rem; line-height: 1.55;">
+          ₦100 service fee per buyer order — paid by the buyer at checkout, not deducted from you. Your full price + delivery lands in your wallet. Paystack's standard processing fee applies separately.
+        </p>
       </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">Do you handle delivery?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">We show buyers live delivery rates from GIG, Kwik, and Sendbox at checkout via Shipbubble. The delivery fee is credited to your wallet so you can arrange logistics yourself or use a Shipbubble courier directly.</div></div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">Do I need a CAC or RC number?</div>
+        <p style="color: var(--slate); margin: 0; font-size: 0.9375rem; line-height: 1.55;">
+          Not to start. You can sell as a sole trader. For verified business badge, you'll need CAC documents — but most sellers ship orders for months before doing that.
+        </p>
       </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">Can I use my own domain?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Custom domains are coming soon. For now, every store gets a clean URL like your-store.storvix.ng — fully branded, SSL-secured, and fast.</div></div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">Can I move my Instagram store here?</div>
+        <p style="color: var(--slate); margin: 0; font-size: 0.9375rem; line-height: 1.55;">
+          Absolutely. Most of our sellers came from IG/WhatsApp. Storvix doesn't replace your social — it captures the orders that would otherwise be lost in DMs. You still post on IG. Buyers click your bio link and check out properly.
+        </p>
       </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">What about WhatsApp notifications?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Every order triggers automatic WhatsApp messages: confirmation to buyer, alert to seller. Shipping updates, delivery confirmations, abandoned cart recovery (Plus+), review requests — all automatic.</div></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">Is this for marketplaces?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">No. Storvix is for individual brand owners. Each seller gets their own independent store. There's no combined marketplace feed and no Storvix branding to compete with yours.</div></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">Can I cancel anytime?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Yes. Cancel from your dashboard anytime. Your store remains live until the end of your current billing period. No fees, no friction.</div></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q"><span class="faq-q-text">Do you support food vendors?</span><span class="faq-q-icon">+</span></div>
-        <div class="faq-a"><div class="faq-a-inner">Not yet. Storvix is currently built for physical products like fashion, beauty, electronics, and home decor. Food and time-sensitive perishables aren't a fit until we add real-time delivery dispatch.</div></div>
+      <div style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">Is my customer data private?</div>
+        <p style="color: var(--slate); margin: 0; font-size: 0.9375rem; line-height: 1.55;">
+          Yes. Storvix doesn't share or sell seller data. Your customer list is yours. Export it whenever you want.
+        </p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─────────────────── FINAL CTA ─────────────────── -->
-<section class="final-cta">
-  <div class="final-cta-card">
-    <h2 class="final-cta-headline">Ready to <em>sell smarter?</em></h2>
-    <p class="final-cta-sub">Open your branded store in 10 minutes. Free for 14 days. No credit card.</p>
-    <a href="auth.html?tab=signup" class="btn btn-blue btn-lg btn-arrow">
-      Get started free <span class="arrow">→</span>
-    </a>
-  </div>
+<!-- ─────────────────  FINAL CTA  ───────────────── -->
+<section style="padding: 80px 24px; text-align: center; background: linear-gradient(135deg, var(--blue) 0%, #4F2FE8 100%); color: white;">
+  <h2 style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 16px; max-width: 600px; margin-left: auto; margin-right: auto;">
+    Stop losing sales to broken processes.
+  </h2>
+  <p style="font-size: 1.125rem; opacity: 0.9; max-width: 480px; margin: 0 auto 28px; line-height: 1.5;">
+    Open a real online store today. ₦1,000. 10 minutes. Done.
+  </p>
+  <a href="auth.html?tab=signup" class="btn btn-blue btn-lg btn-arrow" style="background: white; color: var(--ink);">
+    Open my store now <span class="arrow">→</span>
+  </a>
+  <p style="font-size: 0.8125rem; opacity: 0.8; margin-top: 18px;">No credit card required to sign up · Pay only when you launch</p>
 </section>
 
-<!-- ─────────────────── FOOTER ─────────────────── -->
+<!-- ─────────────────  FOOTER  ───────────────── -->
 <footer class="footer">
   <div class="footer-grid">
     <div class="footer-brand">
-      <div class="footer-logo">
-        <span class="nav-brand-mark">S</span>
-        <span>Storvix</span>
-      </div>
-      <p>Nigerian-built e-commerce platform for product brands. Sell on your own branded storefront — not a marketplace.</p>
+      <img src="assets/logo.png" alt="" class="footer-logo">
+      <p>The Nigerian e-commerce platform built for SMEs who want to grow without the chaos.</p>
     </div>
     <div class="footer-col">
       <h5>Product</h5>
       <a href="#features">Features</a>
-      <a href="#how">How it works</a>
       <a href="#pricing">Pricing</a>
-      <a href="auth.html?tab=signup">Get started</a>
+      <a href="#how">How it works</a>
+      <a href="auth.html?tab=signup">Sign up</a>
     </div>
     <div class="footer-col">
-      <h5>Company</h5>
-      <a href="#">About</a>
-      <a href="#">Blog</a>
-      <a href="mailto:usestorvix@gmail.com">Contact</a>
-      <a href="#">Privacy</a>
+      <h5>Earn</h5>
+      <a href="/refer.html">Affiliate program</a>
+      <a href="/refer.html">Become a referrer</a>
     </div>
     <div class="footer-col">
-      <h5>Get in touch</h5>
-      <a href="mailto:usestorvix@gmail.com">usestorvix@gmail.com</a>
+      <h5>Support</h5>
+      <a href="mailto:usestorvix@gmail.com">Email us</a>
       <a href="https://wa.me/2347089510199">WhatsApp</a>
-      <a href="https://instagram.com/usestorvix" target="_blank">Instagram</a>
-      <a href="https://twitter.com/usestorvix" target="_blank">X / Twitter</a>
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© 2026 Storvix Technologies</span>
-    <span>Built in Lagos · Made for Naija</span>
+    © 2026 Storvix · Built in Lagos, Nigeria 🇳🇬
   </div>
 </footer>
-
-<script>
-  // FAQ accordion
-  document.querySelectorAll(".faq-q").forEach(q => {
-    q.addEventListener("click", () => q.parentElement.classList.toggle("open"));
-  });
-
-  // Pricing toggle
-  document.querySelectorAll(".bt-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".bt-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      const billing = btn.dataset.billing;
-      document.querySelectorAll(".price-amount").forEach(amt => {
-        const v = amt.dataset[billing];
-        amt.innerHTML = `₦${v}<span class="per">/mo</span>`;
-      });
-    });
-  });
-
-  // Scroll reveal
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("in"); });
-  }, { threshold: 0.1 });
-  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
-</script>
 
 </body>
 </html>
