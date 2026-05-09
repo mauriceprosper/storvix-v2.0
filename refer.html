@@ -19,69 +19,35 @@
       --bx-accent-2: #4F2FE8;
       --bx-success: #10B981;
     }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bx-bg);
-      min-height: 100vh;
-      margin: 0;
-      color: var(--bx-text);
-    }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bx-bg); min-height: 100vh; margin: 0; color: var(--bx-text); }
     * { box-sizing: border-box; }
 
-    /* ── Top nav ── */
     .topbar { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; max-width: 1100px; margin: 0 auto; }
     .topbar img { width: 36px; height: 36px; border-radius: 9px; }
     .topbar-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.0625rem; }
     .topbar-brand span { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; opacity: 0.6; }
 
-    /* ── Layout ── */
     .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
     .container-sm { max-width: 560px; margin: 0 auto; padding: 0 20px; }
 
-    /* ── Hero ── */
-    .hero {
-      padding: 56px 0 40px;
-      text-align: center;
-    }
+    .hero { padding: 56px 0 40px; text-align: center; }
     .hero-eyebrow {
       display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
       color: var(--bx-accent);
       background: rgba(0,102,255,0.08);
-      padding: 6px 14px;
-      border-radius: 999px;
-      margin-bottom: 18px;
+      padding: 6px 14px; border-radius: 999px; margin-bottom: 18px;
     }
     .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.05;
-      margin: 0 0 16px;
-      max-width: 720px;
-      margin-left: auto;
-      margin-right: auto;
+      font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+      margin: 0 0 16px; max-width: 720px; margin-left: auto; margin-right: auto;
     }
     .hero h1 em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: var(--bx-accent); }
-    .hero-sub {
-      font-size: 1.125rem;
-      color: var(--bx-muted);
-      max-width: 560px;
-      margin: 0 auto 28px;
-      line-height: 1.55;
-    }
+    .hero-sub { font-size: 1.125rem; color: var(--bx-muted); max-width: 560px; margin: 0 auto 28px; line-height: 1.55; }
     .hero-amount {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 6px;
+      display: inline-flex; align-items: baseline; gap: 6px;
       background: linear-gradient(135deg, var(--bx-accent) 0%, var(--bx-accent-2) 100%);
-      color: white;
-      padding: 18px 28px;
-      border-radius: 16px;
-      margin-bottom: 12px;
+      color: white; padding: 18px 28px; border-radius: 16px; margin-bottom: 12px;
       box-shadow: 0 12px 32px -10px rgba(0,102,255,0.4);
     }
     .hero-amount .num { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
@@ -89,18 +55,9 @@
     .hero-cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
 
     .btn {
-      padding: 13px 26px;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: inherit;
-      border: 1px solid transparent;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.15s;
+      padding: 13px 26px; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; border: 1px solid transparent; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px; transition: all 0.15s;
     }
     .btn-primary { background: var(--bx-text); color: white; }
     .btn-primary:hover { background: #1F2937; transform: translateY(-1px); box-shadow: 0 8px 20px -8px rgba(11,17,32,0.4); }
@@ -109,185 +66,143 @@
     .btn-block { width: 100%; justify-content: center; }
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    /* ── How-it-works ── */
-    .how {
-      padding: 40px 0 60px;
-    }
+    .how { padding: 40px 0 60px; }
     .how h2 { font-size: 1.875rem; font-weight: 800; letter-spacing: -0.02em; text-align: center; margin: 0 0 36px; }
-    .how-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 18px;
-    }
+    .how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     @media (max-width: 760px) { .how-grid { grid-template-columns: 1fr; } }
-    .how-card {
-      background: var(--bx-card);
-      border: 1px solid var(--bx-border);
-      border-radius: 16px;
-      padding: 24px;
-      position: relative;
-    }
+    .how-card { background: var(--bx-card); border: 1px solid var(--bx-border); border-radius: 16px; padding: 24px; position: relative; }
     .how-card .num {
-      position: absolute;
-      top: -14px; left: 24px;
-      width: 32px; height: 32px;
-      background: var(--bx-text);
-      color: white;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.875rem;
+      position: absolute; top: -14px; left: 24px; width: 32px; height: 32px;
+      background: var(--bx-text); color: white; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem;
     }
     .how-card h3 { font-size: 1.125rem; font-weight: 700; margin: 8px 0 8px; }
     .how-card p { color: var(--bx-muted); line-height: 1.5; margin: 0; font-size: 0.9375rem; }
 
-    /* ── Math ── */
-    .math {
-      padding: 40px 0;
-      background: white;
-      border-top: 1px solid var(--bx-border);
-      border-bottom: 1px solid var(--bx-border);
-    }
+    .math { padding: 40px 0; background: white; border-top: 1px solid var(--bx-border); border-bottom: 1px solid var(--bx-border); }
     .math h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; text-align: center; margin: 0 0 8px; }
     .math-sub { text-align: center; color: var(--bx-muted); margin: 0 0 28px; }
-    .math-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      max-width: 640px;
-      margin: 0 auto;
-    }
+    .math-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 640px; margin: 0 auto; }
     @media (max-width: 600px) { .math-grid { grid-template-columns: 1fr; } }
-    .math-card {
-      padding: 20px;
-      border: 1px solid var(--bx-border);
-      border-radius: 14px;
-      text-align: center;
-    }
+    .math-card { padding: 20px; border: 1px solid var(--bx-border); border-radius: 14px; text-align: center; }
     .math-num { font-size: 2rem; font-weight: 800; color: var(--bx-accent); line-height: 1; letter-spacing: -0.02em; }
     .math-label { font-size: 0.8125rem; color: var(--bx-muted); margin-top: 6px; }
 
-    /* ── FAQ ── */
+    /* FAQ accordion */
     .faq { padding: 60px 0; }
     .faq h2 { font-size: 1.875rem; font-weight: 800; letter-spacing: -0.02em; text-align: center; margin: 0 0 32px; }
-    .faq-item {
-      max-width: 720px;
-      margin: 0 auto 12px;
-      padding: 18px 22px;
-      background: var(--bx-card);
-      border: 1px solid var(--bx-border);
-      border-radius: 12px;
+    details.faq-acc {
+      max-width: 720px; margin: 0 auto 10px;
+      background: var(--bx-card); border: 1px solid var(--bx-border); border-radius: 12px;
+      overflow: hidden; transition: box-shadow 0.15s;
     }
-    .faq-q { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
-    .faq-a { color: var(--bx-muted); font-size: 0.9375rem; line-height: 1.55; margin: 0; }
+    details.faq-acc[open] { box-shadow: 0 4px 16px -8px rgba(15,23,42,0.08); }
+    details.faq-acc summary {
+      list-style: none; cursor: pointer; padding: 18px 22px;
+      font-weight: 700; font-size: 0.9375rem; color: var(--bx-text);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    details.faq-acc summary::-webkit-details-marker { display: none; }
+    details.faq-acc summary::after {
+      content: "+"; font-size: 1.5rem; font-weight: 400; color: var(--bx-muted); flex-shrink: 0;
+    }
+    details.faq-acc[open] summary::after { content: "−"; }
+    details.faq-acc .faq-body { padding: 0 22px 18px; color: var(--bx-muted); font-size: 0.9375rem; line-height: 1.55; margin: 0; }
 
-    /* ── Final CTA ── */
-    .final-cta {
-      background: linear-gradient(135deg, var(--bx-accent) 0%, var(--bx-accent-2) 100%);
-      color: white;
-      padding: 52px 20px;
-      text-align: center;
-      margin: 0;
-    }
+    .final-cta { background: linear-gradient(135deg, var(--bx-accent) 0%, var(--bx-accent-2) 100%); color: white; padding: 52px 20px; text-align: center; }
     .final-cta h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 12px; }
     .final-cta p { opacity: 0.9; max-width: 480px; margin: 0 auto 24px; }
     .final-cta .btn-primary { background: white; color: var(--bx-text); }
     .final-cta .btn-primary:hover { background: rgba(255,255,255,0.95); }
 
-    /* ── Footer ── */
     .footer { padding: 24px 20px; text-align: center; font-size: 0.8125rem; color: var(--bx-muted); }
     .footer a { color: var(--bx-muted); }
 
-    /* ── Auth modal ── */
+    /* Auth modal */
     .auth-overlay {
-      position: fixed; inset: 0;
-      background: rgba(15,23,42,0.6);
-      backdrop-filter: blur(6px);
-      display: none;
-      align-items: center; justify-content: center;
-      z-index: 100;
-      padding: 20px;
+      position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
     }
     .auth-overlay.open { display: flex; }
     .auth-card {
-      background: white;
-      border-radius: 18px;
-      width: 100%;
-      max-width: 440px;
-      max-height: 90vh;
-      overflow-y: auto;
-      padding: 28px;
+      background: white; border-radius: 18px; width: 100%; max-width: 460px;
+      max-height: 92vh; overflow-y: auto; padding: 28px;
       box-shadow: 0 24px 64px -16px rgba(0,0,0,0.3);
     }
     .auth-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .auth-header h3 { font-size: 1.25rem; font-weight: 800; margin: 0; }
     .auth-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--bx-muted); padding: 0 6px; }
 
+    /* Stepper */
+    .stepper { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .step-dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--bx-border); color: var(--bx-muted);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8125rem;
+      transition: all 0.2s;
+    }
+    .step-dot.active { background: var(--bx-accent); color: white; }
+    .step-dot.done   { background: var(--bx-success); color: white; }
+    .step-line { flex: 1; height: 2px; background: var(--bx-border); border-radius: 1px; }
+    .step-line.active { background: var(--bx-accent); }
+
     .form { display: flex; flex-direction: column; gap: 14px; }
     .form .field label { display: block; font-size: 0.8125rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
     .form .field input, .form .field select {
-      width: 100%;
-      padding: 11px 14px;
-      border: 1px solid #D1D5DB;
-      border-radius: 10px;
-      font-size: 0.9375rem;
-      font-family: inherit;
+      width: 100%; padding: 11px 14px; border: 1px solid #D1D5DB; border-radius: 10px;
+      font-size: 0.9375rem; font-family: inherit;
     }
     .form .field input:focus, .form .field select:focus {
-      outline: none;
-      border-color: var(--bx-accent);
-      box-shadow: 0 0 0 3px rgba(0,102,255,0.1);
+      outline: none; border-color: var(--bx-accent); box-shadow: 0 0 0 3px rgba(0,102,255,0.1);
     }
     .form-toggle { text-align: center; font-size: 0.875rem; color: var(--bx-muted); margin-top: 6px; }
     .form-toggle a { color: var(--bx-accent); font-weight: 600; cursor: pointer; }
 
-    /* ── Dashboard view (after signin) ── */
+    .verify-result {
+      margin-top: 12px; padding: 12px; border-radius: 10px;
+      font-size: 0.875rem; display: none;
+    }
+    .verify-result.success { background: rgba(16,185,129,0.08); color: #047857; border: 1px solid rgba(16,185,129,0.3); }
+    .verify-result.error   { background: rgba(239,68,68,0.08); color: #B91C1C; border: 1px solid rgba(239,68,68,0.3); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 460px) { .form-row { grid-template-columns: 1fr; } }
+
+    .skip-link {
+      display: block; text-align: center; margin-top: 12px;
+      font-size: 0.8125rem; color: var(--bx-muted); cursor: pointer;
+    }
+    .skip-link:hover { color: var(--bx-text); }
+
+    /* Dashboard view */
     .ref-dash {
-      padding: 32px 16px;
-      max-width: 720px;
-      margin: 0 auto;
-      display: none;
+      padding: 32px 16px; max-width: 720px; margin: 0 auto; display: none;
     }
     .ref-dash-header {
       background: linear-gradient(135deg, var(--bx-accent) 0%, var(--bx-accent-2) 100%);
-      color: white;
-      border-radius: 18px;
-      padding: 28px;
-      margin-bottom: 16px;
+      color: white; border-radius: 18px; padding: 28px; margin-bottom: 16px;
     }
     .ref-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px; }
     .ref-stat .num { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
     .ref-stat .lbl { font-size: 0.7rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
     .code-row {
-      background: rgba(255,255,255,0.12);
-      backdrop-filter: blur(8px);
-      padding: 16px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+      padding: 16px; border-radius: 12px; display: flex; align-items: center; gap: 12px;
     }
     .code-row .lbl { font-size: 0.7rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
     .code-row .code { font-size: 1.5rem; font-weight: 800; font-family: monospace; letter-spacing: 0.05em; }
-
     .ref-card { background: white; border: 1px solid var(--bx-border); border-radius: 16px; padding: 22px; margin-bottom: 14px; }
     .ref-card h4 { margin: 0 0 12px; font-size: 1rem; font-weight: 700; }
     .ref-card .link-row { display: flex; gap: 8px; align-items: center; }
     .ref-card .link-row input { flex: 1; padding: 11px 14px; border: 1px solid #D1D5DB; border-radius: 10px; font-family: monospace; font-size: 0.875rem; min-width: 0; }
-
-    .verify-result { margin-top: 12px; padding: 12px; border-radius: 10px; font-size: 0.875rem; display: none; }
-    .verify-result.success { background: rgba(16,185,129,0.08); color: #047857; border: 1px solid rgba(16,185,129,0.3); }
-    .verify-result.error   { background: rgba(239,68,68,0.08); color: #B91C1C; border: 1px solid rgba(239,68,68,0.3); }
   </style>
 </head>
 <body>
 <div id="storvix-toast"></div>
 
-<!-- ── PUBLIC LANDING (visible when not signed in) ── -->
+<!-- ── PUBLIC LANDING ── -->
 <div id="publicView">
-
   <header class="topbar">
     <a href="/" class="topbar-brand" style="color:inherit;text-decoration:none">
       <img src="assets/logo.png" alt="">
@@ -302,7 +217,7 @@
     <div class="container-sm">
       <span class="hero-eyebrow">Storvix Affiliate Program</span>
       <h1>Get paid <em>₦200</em> for every business owner you bring to Storvix.</h1>
-      <p class="hero-sub">No quotas. No interviews. No followers required. Just share your link, and earn money when people sign up to sell on Storvix.</p>
+      <p class="hero-sub">No quotas. No interviews. No followers required. Share your link, earn money when people sign up to sell on Storvix.</p>
 
       <div class="hero-amount">
         <span class="num">₦200</span>
@@ -322,17 +237,17 @@
         <div class="how-card">
           <div class="num">1</div>
           <h3>Sign up in 60 seconds</h3>
-          <p>Enter your name, email, and phone. We generate a unique referral code from your name. No interview.</p>
+          <p>Enter your name, email, phone, and bank. We generate a unique referral code from your name.</p>
         </div>
         <div class="how-card">
           <div class="num">2</div>
           <h3>Share your link</h3>
-          <p>WhatsApp, X, Instagram, your church group, your CBT class — anywhere a Nigerian business owner might be.</p>
+          <p>WhatsApp, X, Instagram, your church group — anywhere a Nigerian business owner might be.</p>
         </div>
         <div class="how-card">
           <div class="num">3</div>
           <h3>Get ₦200 per signup</h3>
-          <p>Every time someone signs up using your code AND pays the ₦1,000 starter pack, ₦200 lands in your balance.</p>
+          <p>Every paid signup earns you ₦200. Withdraw to your bank when balance hits ₦3,000.</p>
         </div>
       </div>
     </div>
@@ -343,18 +258,9 @@
       <h2>The math is simple</h2>
       <p class="math-sub">Refer 15 friends and you've earned ₦3,000 — your first withdrawal.</p>
       <div class="math-grid">
-        <div class="math-card">
-          <div class="math-num">5</div>
-          <div class="math-label">friends = ₦1,000</div>
-        </div>
-        <div class="math-card">
-          <div class="math-num">15</div>
-          <div class="math-label">friends = ₦3,000 (first withdraw)</div>
-        </div>
-        <div class="math-card">
-          <div class="math-num">50</div>
-          <div class="math-label">friends = ₦10,000</div>
-        </div>
+        <div class="math-card"><div class="math-num">5</div><div class="math-label">friends = ₦1,000</div></div>
+        <div class="math-card"><div class="math-num">15</div><div class="math-label">friends = ₦3,000</div></div>
+        <div class="math-card"><div class="math-num">50</div><div class="math-label">friends = ₦10,000</div></div>
       </div>
     </div>
   </section>
@@ -363,41 +269,36 @@
     <div class="container">
       <h2>Common questions</h2>
 
-      <div class="faq-item">
-        <div class="faq-q">When do I actually earn the ₦200?</div>
-        <p class="faq-a">When the seller you referred signs up AND pays the ₦1,000 starter pack. Just clicking the link doesn't trigger payment — they have to complete onboarding.</p>
-      </div>
+      <details class="faq-acc">
+        <summary>When do I actually earn the ₦200?</summary>
+        <p class="faq-body">When the seller you referred signs up AND pays the ₦1,000 starter pack. Just clicking the link doesn't trigger payment — they have to complete onboarding.</p>
+      </details>
 
-      <div class="faq-item">
-        <div class="faq-q">When can I withdraw?</div>
-        <p class="faq-a">Once your balance hits ₦3,000. We pay directly to your Nigerian bank account. Funds arrive within 24 hours of you requesting withdrawal.</p>
-      </div>
+      <details class="faq-acc">
+        <summary>When can I withdraw?</summary>
+        <p class="faq-body">Once your balance hits ₦3,000. We pay directly to your Nigerian bank account, processed within 24 hours of you requesting withdrawal.</p>
+      </details>
 
-      <div class="faq-item">
-        <div class="faq-q">Is there a cap?</div>
-        <p class="faq-a">No. Refer 5 people or 5,000 — every paid signup earns you ₦200.</p>
-      </div>
+      <details class="faq-acc">
+        <summary>Is there a cap?</summary>
+        <p class="faq-body">No. Refer 5 people or 5,000 — every paid signup earns you ₦200.</p>
+      </details>
 
-      <div class="faq-item">
-        <div class="faq-q">Can I refer myself?</div>
-        <p class="faq-a">No. Self-referrals are blocked. The system checks the referrer's account against the new signup's account.</p>
-      </div>
+      <details class="faq-acc">
+        <summary>Can I refer myself?</summary>
+        <p class="faq-body">No. Self-referrals are blocked. The system checks the referrer's account against the new signup's account.</p>
+      </details>
 
-      <div class="faq-item">
-        <div class="faq-q">Do I need to be a Storvix seller?</div>
-        <p class="faq-a">No. The affiliate program is open to anyone — students, freelancers, anyone with a network. If you ARE already a Storvix seller, your dashboard already has a Refer & Earn tab — use that instead.</p>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q">What does Storvix actually do?</div>
-        <p class="faq-a">Storvix is the e-commerce + business management platform for Nigerian SMEs. Sellers get a custom storefront, accept Paystack payments, manage orders, and run their business from one dashboard. ₦1,000/month after a 30-day starter pack.</p>
-      </div>
+      <details class="faq-acc">
+        <summary>Do I need to be a Storvix seller?</summary>
+        <p class="faq-body">No. The affiliate program is open to anyone — students, freelancers, anyone with a network. If you ARE already a Storvix seller, your dashboard already has a Refer & Earn tab — use that instead.</p>
+      </details>
     </div>
   </section>
 
   <section class="final-cta">
     <h2>Start earning in 60 seconds</h2>
-    <p>It's free. No interview. Just sign up, get your link, and start sharing.</p>
+    <p>It's free. No interview. Just sign up, get your link, start sharing.</p>
     <button class="btn btn-primary" id="ctaFinal">Get my referral code →</button>
   </section>
 
@@ -406,7 +307,7 @@
   </footer>
 </div>
 
-<!-- ── DASHBOARD VIEW (visible after signin) ── -->
+<!-- ── DASHBOARD VIEW ── -->
 <div class="ref-dash" id="dashView">
   <header class="topbar" style="padding-left:0;padding-right:0;margin-bottom:16px">
     <div class="topbar-brand">
@@ -418,20 +319,10 @@
 
   <div class="ref-dash-header">
     <div class="ref-stats">
-      <div class="ref-stat">
-        <div class="lbl">Available</div>
-        <div class="num" id="statBalance">₦0</div>
-      </div>
-      <div class="ref-stat">
-        <div class="lbl">Total Earned</div>
-        <div class="num" id="statEarned">₦0</div>
-      </div>
-      <div class="ref-stat">
-        <div class="lbl">Referrals</div>
-        <div class="num" id="statCount">0</div>
-      </div>
+      <div class="ref-stat"><div class="lbl">Available</div><div class="num" id="statBalance">₦0</div></div>
+      <div class="ref-stat"><div class="lbl">Total Earned</div><div class="num" id="statEarned">₦0</div></div>
+      <div class="ref-stat"><div class="lbl">Referrals</div><div class="num" id="statCount">0</div></div>
     </div>
-
     <div class="code-row">
       <div style="flex:1">
         <div class="lbl">Your code</div>
@@ -447,7 +338,6 @@
       <input type="text" readonly id="myLink">
       <button class="btn btn-primary" id="copyLinkBtn" style="background:var(--bx-accent);padding:11px 16px;font-size:.875rem">Copy</button>
     </div>
-    <p style="font-size:.8125rem;color:var(--bx-muted);margin:10px 0 0">Share this link. When someone signs up and pays ₦1,000, you earn ₦200.</p>
   </div>
 
   <div class="ref-card">
@@ -464,7 +354,7 @@
   </div>
 </div>
 
-<!-- ── AUTH MODAL ── -->
+<!-- ── AUTH MODAL (multi-step signup) ── -->
 <div class="auth-overlay" id="authModal">
   <div class="auth-card">
     <div class="auth-header">
@@ -472,7 +362,14 @@
       <button class="auth-close" id="authClose">×</button>
     </div>
 
-    <!-- Sign up form -->
+    <!-- Stepper (only shown during signup) -->
+    <div class="stepper" id="signupStepper">
+      <div class="step-dot active" data-step="1">1</div>
+      <div class="step-line" id="stepLine1"></div>
+      <div class="step-dot" data-step="2">2</div>
+    </div>
+
+    <!-- STEP 1: Account details -->
     <form class="form" id="signupForm">
       <div class="field">
         <label>Full name *</label>
@@ -490,13 +387,34 @@
         <label>Password *</label>
         <input type="password" id="signupPassword" minlength="6" placeholder="Min 6 characters" required>
       </div>
-      <button type="submit" class="btn btn-primary btn-block" id="signupBtn">Create my affiliate account</button>
-      <p class="form-toggle">
-        Already have an account? <a id="showLoginBtn">Sign in</a>
-      </p>
+      <button type="submit" class="btn btn-primary btn-block" id="signupBtn">Continue →</button>
+      <p class="form-toggle">Already have an account? <a id="showLoginBtn">Sign in</a></p>
     </form>
 
-    <!-- Login form -->
+    <!-- STEP 2: Bank details (optional, with verify) -->
+    <form class="form" id="bankStepForm" style="display:none">
+      <p style="color:var(--bx-muted); font-size:0.875rem; margin:0 0 14px;">
+        Add your bank now to withdraw earnings later. We verify the name with Paystack before saving.
+      </p>
+      <div class="form-row">
+        <div class="field">
+          <label>Bank *</label>
+          <select id="bankSelect"><option value="">Loading…</option></select>
+        </div>
+        <div class="field">
+          <label>Account number *</label>
+          <input type="text" id="bankAcct" maxlength="10" inputmode="numeric" placeholder="0123456789">
+        </div>
+      </div>
+      <div id="bankVerifyResult" class="verify-result"></div>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn btn-outline" id="verifyBankBtn" style="flex:1">Verify name</button>
+        <button type="button" class="btn btn-primary" id="saveBankBtn" style="flex:1;display:none">Save & finish</button>
+      </div>
+      <a class="skip-link" id="skipBankBtn">Skip — I'll add it later</a>
+    </form>
+
+    <!-- LOGIN form (toggled separately) -->
     <form class="form" id="loginForm" style="display:none">
       <div class="field">
         <label>Email *</label>
@@ -507,9 +425,7 @@
         <input type="password" id="loginPassword" required>
       </div>
       <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Sign in</button>
-      <p class="form-toggle">
-        New here? <a id="showSignupBtn">Sign up</a>
-      </p>
+      <p class="form-toggle">New here? <a id="showSignupBtn">Sign up</a></p>
     </form>
   </div>
 </div>
@@ -532,43 +448,51 @@ let currentUser = null;
 let referrer    = null;
 let _refUnsub    = null;
 let _earningsUnsub = null;
+let _signupData = null;  // Holds signup form data while moving to bank step
 
 const $ = (id) => document.getElementById(id);
 
-// ── Auth modal control ──
+// ── Modal / view control ──
 function openAuth(mode = "signup") {
   $("authModal").classList.add("open");
-  if (mode === "signup") {
-    $("signupForm").style.display = "";
-    $("loginForm").style.display = "none";
-    $("authTitle").textContent = "Sign up to get your code";
-  } else {
-    $("signupForm").style.display = "none";
-    $("loginForm").style.display = "";
-    $("authTitle").textContent = "Welcome back";
-  }
+  showAuthStep(mode);
 }
 function closeAuth() {
   $("authModal").classList.remove("open");
+  setStepperState(1);
+  $("signupForm").style.display = "none";
+  $("bankStepForm").style.display = "none";
+  $("loginForm").style.display = "none";
 }
+function showAuthStep(name) {
+  $("signupForm").style.display     = name === "signup"     ? "" : "none";
+  $("bankStepForm").style.display   = name === "bank"       ? "" : "none";
+  $("loginForm").style.display      = name === "login"      ? "" : "none";
+  $("signupStepper").style.display  = (name === "signup" || name === "bank") ? "" : "none";
+
+  if (name === "signup")    { setStepperState(1); $("authTitle").textContent = "Create your affiliate account"; }
+  else if (name === "bank") { setStepperState(2); $("authTitle").textContent = "Bank details (optional)"; }
+  else if (name === "login"){ $("authTitle").textContent = "Welcome back"; }
+}
+function setStepperState(n) {
+  document.querySelectorAll(".step-dot").forEach(d => {
+    const s = parseInt(d.dataset.step);
+    d.classList.toggle("active", s === n);
+    d.classList.toggle("done",   s < n);
+  });
+  $("stepLine1").classList.toggle("active", n >= 2);
+}
+
+function showPublic()    { $("publicView").style.display = "";    $("dashView").style.display = "none"; }
+function showDashboard() { $("publicView").style.display = "none";$("dashView").style.display = "block"; }
 
 $("ctaPrimary")?.addEventListener("click", () => openAuth("signup"));
 $("ctaFinal")?.addEventListener("click", () => openAuth("signup"));
 $("navSigninBtn")?.addEventListener("click", () => openAuth("login"));
 $("authClose")?.addEventListener("click", closeAuth);
-$("showLoginBtn")?.addEventListener("click", () => openAuth("login"));
-$("showSignupBtn")?.addEventListener("click", () => openAuth("signup"));
+$("showLoginBtn")?.addEventListener("click", () => showAuthStep("login"));
+$("showSignupBtn")?.addEventListener("click", () => showAuthStep("signup"));
 $("authModal")?.addEventListener("click", (e) => { if (e.target.id === "authModal") closeAuth(); });
-
-// ── View switching ──
-function showPublic() {
-  $("publicView").style.display = "";
-  $("dashView").style.display = "none";
-}
-function showDashboard() {
-  $("publicView").style.display = "none";
-  $("dashView").style.display = "block";
-}
 
 // ── Auth state ──
 onAuthStateChanged(auth, async (user) => {
@@ -581,22 +505,25 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   currentUser = user;
-
   try {
     const snap = await getDoc(doc(db, "referrers", user.uid));
     if (snap.exists()) {
-      // Existing referrer — load + show dashboard
       referrer = { id: user.uid, ...snap.data() };
       attachRealtimeListeners();
       renderDashboard();
       closeAuth();
       showDashboard();
     } else {
-      // Signed in but no referrer record — they probably signed up just now
-      // Their info will be in the form; signup handler creates the record explicitly
-      // If they got here via login (not signup), show a message
-      showPublic();
-      toast("This account isn't registered as an affiliate. Sign up below.", "info");
+      // Logged in but no referrer record. Could be a brand-new signup mid-flow.
+      // Don't auto-create — let the signup flow handle it via _signupData.
+      // If no _signupData (e.g. they reloaded mid-signup), show the bank step
+      // to collect at minimum so we can still create their record.
+      if (_signupData) {
+        // Continue normal flow; signup handler will move forward
+      } else {
+        showPublic();
+        toast("This account isn't registered as an affiliate yet. Sign up below.", "info");
+      }
     }
   } catch (e) {
     console.error("Load referrer failed:", e);
@@ -618,7 +545,7 @@ function attachRealtimeListeners() {
   );
 }
 
-// ── Sign up ──
+// ── STEP 1: Sign up form submit ──
 $("signupForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const name  = $("signupName").value.trim();
@@ -632,7 +559,14 @@ $("signupForm").addEventListener("submit", async (e) => {
   btn.disabled = true; btn.textContent = "Creating account…";
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await createReferrerRecord(cred.user, name, email, phone);
+    // Save data for step 2 — but DON'T create the referrer record yet
+    _signupData = {
+      uid: cred.user.uid, name, email, phone,
+    };
+    // Move to bank step (account exists, but referrer record not yet)
+    showAuthStep("bank");
+    // Populate bank dropdown
+    await populateBankDropdown();
   } catch (err) {
     console.error(err);
     let msg = err.message || "Sign up failed";
@@ -640,13 +574,79 @@ $("signupForm").addEventListener("submit", async (e) => {
     if (err.code === "auth/weak-password")        msg = "Password too weak. Use at least 6 characters.";
     toast(msg, "error");
     btn.disabled = false;
-    btn.textContent = "Create my affiliate account";
+    btn.textContent = "Continue →";
   }
 });
 
-async function createReferrerRecord(user, name, email, phone) {
-  // Generate code from name (alphanumeric, uppercase, 6 chars)
-  const baseCode = (name || "REF").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6) || "REF";
+// ── STEP 2: Bank verification + save ──
+async function populateBankDropdown() {
+  const sel = $("bankSelect");
+  sel.innerHTML = '<option value="">Loading banks…</option>';
+  try {
+    const banks = await getLiveBanks(callListBanks);
+    sel.innerHTML = '<option value="">Select your bank…</option>' +
+      banks.map(b => `<option value="${b.code}" data-name="${b.name.replace(/"/g, "&quot;")}">${b.name}</option>`).join("");
+  } catch {
+    sel.innerHTML = '<option value="">Select your bank…</option>' +
+      NIGERIAN_BANKS.map(b => `<option value="${b.code}" data-name="${b.name}">${b.name}</option>`).join("");
+  }
+}
+
+let _verifiedBankData = null;
+
+$("verifyBankBtn").addEventListener("click", async () => {
+  const bsel = $("bankSelect");
+  const acct = $("bankAcct").value.trim();
+  const code = bsel.value;
+  const bankName = bsel.options[bsel.selectedIndex]?.dataset.name;
+  const result = $("bankVerifyResult");
+  if (!code) { toast("Pick a bank.", "error"); return; }
+  if (!/^\d{10}$/.test(acct)) { toast("Account number must be 10 digits.", "error"); return; }
+
+  $("verifyBankBtn").disabled = true; $("verifyBankBtn").textContent = "Verifying…";
+  result.style.display = "none";
+  $("saveBankBtn").style.display = "none";
+
+  try {
+    const res = await callVerifyBankAccount({ bankCode: code, accountNumber: acct });
+    const accountName = res.data?.accountName;
+    if (!accountName) throw new Error("No name returned");
+    _verifiedBankData = { bankCode: code, bankName, accountNumber: acct, accountName };
+    result.style.display = ""; result.className = "verify-result success";
+    result.innerHTML = `<strong>✓ ${accountName}</strong><br>${bankName} · ${acct}<br><span style="color:var(--bx-muted);font-size:.75rem;margin-top:4px;display:inline-block">Confirm this is your account, then click Save.</span>`;
+    $("saveBankBtn").style.display = "";
+  } catch (e) {
+    result.style.display = ""; result.className = "verify-result error";
+    result.innerHTML = `✗ ${e.message || "Could not verify"}<br><span style="font-size:.75rem;color:var(--bx-muted)">Check the account number and try again.</span>`;
+    _verifiedBankData = null;
+  }
+  $("verifyBankBtn").disabled = false; $("verifyBankBtn").textContent = "Verify name";
+});
+
+$("saveBankBtn").addEventListener("click", async () => {
+  if (!_verifiedBankData || !_signupData) return;
+  $("saveBankBtn").disabled = true; $("saveBankBtn").textContent = "Saving…";
+  try {
+    await finalizeReferrerCreation(_signupData, _verifiedBankData);
+  } catch (e) {
+    toast("Save failed: " + e.message, "error");
+    $("saveBankBtn").disabled = false;
+    $("saveBankBtn").textContent = "Save & finish";
+  }
+});
+
+$("skipBankBtn").addEventListener("click", async () => {
+  if (!_signupData) return;
+  try {
+    await finalizeReferrerCreation(_signupData, null);
+  } catch (e) {
+    toast("Failed: " + e.message, "error");
+  }
+});
+
+async function finalizeReferrerCreation(data, bankData) {
+  // Generate code from name
+  const baseCode = (data.name || "REF").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6) || "REF";
   let code = baseCode;
   for (let i = 1; i <= 100; i++) {
     const exists = await getDoc(doc(db, "referralCodes", code));
@@ -654,23 +654,27 @@ async function createReferrerRecord(user, name, email, phone) {
     code = baseCode + i;
   }
 
-  await setDoc(doc(db, "referrers", user.uid), {
-    name, email, phone: phone || "",
+  const refDoc = {
+    name: data.name, email: data.email, phone: data.phone || "",
     code,
     balance:       0,
     totalEarned:   0,
     referralCount: 0,
     createdAt:     serverTimestamp(),
-  });
+  };
+  if (bankData) {
+    refDoc.bank = bankData;
+    refDoc.bankVerified = true;
+  }
+
+  await setDoc(doc(db, "referrers", data.uid), refDoc);
   await setDoc(doc(db, "referralCodes", code), {
-    code,
-    ownerType: "referrer",
-    ownerId:   user.uid,
-    ownerName: name,
+    code, ownerType: "referrer", ownerId: data.uid, ownerName: data.name,
     createdAt: serverTimestamp(),
   });
 
-  referrer = { id: user.uid, name, email, phone, code, balance: 0, totalEarned: 0, referralCount: 0 };
+  referrer = { id: data.uid, ...refDoc };
+  _signupData = null;
   attachRealtimeListeners();
   renderDashboard();
   closeAuth();
@@ -698,7 +702,7 @@ $("signOutBtn")?.addEventListener("click", async () => {
   await signOut(auth);
 });
 
-// ── Render dashboard ──
+// ── Dashboard ──
 function renderDashboard() {
   if (!referrer) return;
   $("statBalance").textContent = fmt(referrer.balance || 0);
@@ -719,8 +723,7 @@ function renderEarnings(snap) {
   wrap.innerHTML = snap.docs.map(d => {
     const e = d.data();
     const when = e.createdAt?.toDate?.() ? new Date(e.createdAt.toDate()).toLocaleDateString("en-NG", { day:"numeric", month:"short" }) : "";
-    return `
-      <div style="padding:12px 14px;border:1px solid var(--bx-border);border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+    return `<div style="padding:12px 14px;border:1px solid var(--bx-border);border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-weight:600;font-size:.9375rem">${e.referredStoreName || "New seller"}</div>
           <div style="font-size:.75rem;color:var(--bx-muted)">Signed up ${when}</div>
@@ -739,7 +742,7 @@ $("copyLinkBtn")?.addEventListener("click", (e) => {
   });
 });
 
-// ── Bank + Withdraw ──
+// ── Bank section in dashboard (post-signup edits) ──
 function renderBankSection() {
   const sec = $("bankSection");
   const canWithdraw = (referrer.balance || 0) >= 3000;
@@ -749,25 +752,24 @@ function renderBankSection() {
       <div style="padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;margin-bottom:14px;font-size:.875rem;color:#92400E">
         Add your bank details to withdraw earnings.
       </div>
-      <form class="form" id="bankForm">
+      <form class="form" id="dashBankForm">
         <div class="field">
           <label>Bank *</label>
-          <select id="bankSelect" required><option value="">Loading banks…</option></select>
+          <select id="dashBankSelect"><option value="">Loading banks…</option></select>
         </div>
         <div class="field">
           <label>Account number *</label>
-          <input type="text" id="bankAcct" maxlength="10" inputmode="numeric" placeholder="0123456789" required>
+          <input type="text" id="dashBankAcct" maxlength="10" inputmode="numeric" placeholder="0123456789">
         </div>
-        <div id="bankVerifyResult" class="verify-result"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button type="button" class="btn btn-outline" id="verifyBankBtn">Verify</button>
-          <button type="button" class="btn btn-primary" id="saveBankBtn" style="display:none">Save</button>
+        <div id="dashBankVerifyResult" class="verify-result"></div>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn btn-outline" id="dashVerifyBtn" style="flex:1">Verify name</button>
+          <button type="button" class="btn btn-primary" id="dashSaveBtn" style="flex:1;display:none">Save</button>
         </div>
       </form>`;
 
-    // Populate banks
     (async () => {
-      const sel = $("bankSelect");
+      const sel = $("dashBankSelect");
       try {
         const banks = await getLiveBanks(callListBanks);
         sel.innerHTML = '<option value="">Select your bank…</option>' +
@@ -779,35 +781,35 @@ function renderBankSection() {
     })();
 
     let verifiedData = null;
-    $("verifyBankBtn").onclick = async () => {
-      const bsel = $("bankSelect");
-      const acct = $("bankAcct").value.trim();
+    $("dashVerifyBtn").onclick = async () => {
+      const bsel = $("dashBankSelect");
+      const acct = $("dashBankAcct").value.trim();
       const code = bsel.value;
       const bankName = bsel.options[bsel.selectedIndex]?.dataset.name;
-      const result = $("bankVerifyResult");
+      const result = $("dashBankVerifyResult");
       if (!code) return toast("Pick a bank.", "error");
       if (!/^\d{10}$/.test(acct)) return toast("Account number must be 10 digits.", "error");
 
-      $("verifyBankBtn").disabled = true; $("verifyBankBtn").textContent = "Verifying…";
+      $("dashVerifyBtn").disabled = true; $("dashVerifyBtn").textContent = "Verifying…";
       try {
         const res = await callVerifyBankAccount({ bankCode: code, accountNumber: acct });
         const accountName = res.data?.accountName;
         if (!accountName) throw new Error("No name returned");
         verifiedData = { bankCode: code, bankName, accountNumber: acct, accountName };
         result.style.display = ""; result.className = "verify-result success";
-        result.innerHTML = `<strong>✓ ${accountName}</strong><br>${bankName} · ${acct}`;
-        $("saveBankBtn").style.display = "";
+        result.innerHTML = `<strong>✓ ${accountName}</strong><br>${bankName} · ${acct}<br><span style="color:var(--bx-muted);font-size:.75rem">Confirm this is correct, then save.</span>`;
+        $("dashSaveBtn").style.display = "";
       } catch (e) {
         result.style.display = ""; result.className = "verify-result error";
         result.innerHTML = `✗ ${e.message || "Could not verify"}`;
         verifiedData = null;
       }
-      $("verifyBankBtn").disabled = false; $("verifyBankBtn").textContent = "Verify";
+      $("dashVerifyBtn").disabled = false; $("dashVerifyBtn").textContent = "Verify name";
     };
 
-    $("saveBankBtn").onclick = async () => {
+    $("dashSaveBtn").onclick = async () => {
       if (!verifiedData) return;
-      $("saveBankBtn").disabled = true;
+      $("dashSaveBtn").disabled = true;
       try {
         await updateDoc(doc(db, "referrers", referrer.id), {
           bank: verifiedData, bankVerified: true, updatedAt: serverTimestamp(),
@@ -818,7 +820,7 @@ function renderBankSection() {
       } catch (e) {
         toast("Save failed: " + e.message, "error");
       }
-      $("saveBankBtn").disabled = false;
+      $("dashSaveBtn").disabled = false;
     };
   } else {
     sec.innerHTML = `
@@ -844,11 +846,8 @@ function renderBankSection() {
       if (!confirm(`Withdraw ${fmt(referrer.balance)} to ${referrer.bank.bankName} - ${referrer.bank.accountNumber}?`)) return;
       const btn = $("withdrawBtn"); btn.disabled = true; btn.textContent = "Submitting…";
       try {
-        // Deduct balance immediately so UI is consistent
         const requestAmount = referrer.balance;
-        await updateDoc(doc(db, "referrers", referrer.id), {
-          balance: 0,
-        });
+        await updateDoc(doc(db, "referrers", referrer.id), { balance: 0 });
         await addDoc(collection(db, "referrers", referrer.id, "withdrawals"), {
           referrerId: referrer.id,
           referrerName: referrer.name,
